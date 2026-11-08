@@ -537,29 +537,7 @@
         let latestNotificationData = null;
 
         let songs = JSON.parse(localStorage.getItem('group_songs')) || [
-            { 
-                id: 1, 
-                title: "Vivir Mi Vida", 
-                artist: "Marc Anthony", 
-                singer: "Carlos", 
-                tone: "G", 
-                rhythm: "Salsa", 
-                bpm: "105",
-                notes: "Entrada con metales en compás 4. Solo de trompeta en el puente.",
-                lyrics: "[Intro]\n[G] [D] [Em] [C]\n\n[Coro]\n[G] Voy a reír, voy a [D] bailar\n[Em] Vivir mi vida la, la, [C] la, la\n[G] Voy a reír, voy a [D] gozar\n[Em] Vivir mi vida la, la, [C] la, la" 
-            },
-            { 
-                id: 2, 
-                title: "Héroe", 
-                artist: "Enrique Iglesias", 
-                singer: "María", 
-                tone: "C", 
-                rhythm: "Balada", 
-                bpm: "72",
-                notes: "Guitarra acústica arpegiada en el verso 1.",
-                lyrics: "[Verso]\n[C] Si pudiera ser tu [G/B] héroe\n[Am] Si pudiera ser tu [F] Dios\n[C] Que te salvaría a [G/B] ti\n[Am] Mil veces del [F] dolor" 
-            }
-        ];
+             ];
 
         let setlists = JSON.parse(localStorage.getItem('group_setlists')) || [
             {
