@@ -1,0 +1,1967 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Setlist Band - Gestión de Acordes</title>
+    <link rel="manifest" href="manifest.json">
+    <link rel="apple-touch-icon" href="logo.jpg">
+    <link rel="icon" type="image/jpeg" href="logo.jpg">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="apple-mobile-web-app-title" content="Doble A">
+    <meta name="theme-color" content="#0f172a">
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        .chord-block {
+            display: inline-flex;
+            flex-direction: column;
+            vertical-align: bottom;
+            margin-right: 0.12rem;
+            line-height: 1;
+        }
+        .chord-text {
+            font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+            font-weight: 700;
+            color: #fbbf24;
+            line-height: 1;
+            font-size: 0.82em;
+            margin-bottom: 1px;
+            user-select: none;
+        }
+        .lyric-text {
+            font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            line-height: 1.15;
+            white-space: pre;
+            color: #f1f5f9;
+        }
+        .section-badge {
+            display: inline-block;
+            background: rgba(245, 158, 11, 0.15);
+            border-left: 3px solid #f59e0b;
+            color: #fcd34d;
+            font-size: 0.7rem;
+            font-weight: 700;
+            padding: 0.15rem 0.5rem;
+            border-radius: 0.375rem;
+            margin: 0.35rem 0 0.1rem 0;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+        }
+        .no-scrollbar::-webkit-scrollbar { display: none; }
+        .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+    </style>
+</head>
+<body class="bg-slate-950 text-slate-100 min-h-screen flex flex-col selection:bg-amber-500 selection:text-slate-900">
+
+    <header id="main-header" class="bg-slate-900 border-b border-slate-800 sticky top-0 z-40 px-3.5 py-2.5 shadow-md flex justify-between items-center transition-all duration-200">
+        <h1 class="text-base md:text-xl font-bold text-amber-400 flex items-center gap-2 cursor-pointer" onclick="switchTab('library')">
+            <img src="logo.jpg" alt="Logo" class="w-7 h-7 md:w-8 md:h-8 rounded-full object-cover border border-amber-500/60 shadow shadow-amber-500/30">
+            <span class="tracking-tight">Doble A</span>
+        </h1>
+        <div class="flex items-center gap-1.5 md:gap-2">
+            <button id="btn-install" class="hidden px-2.5 py-1.5 rounded-lg text-xs md:text-sm font-bold bg-emerald-500 text-slate-950 hover:bg-emerald-400 transition shadow-md shadow-emerald-500/20 active:scale-95">
+                📱 Instalar
+            </button>
+            <button onclick="manualCloudSync()" title="Sincronizado automáticamente para la banda" class="px-2.5 py-1.5 rounded-lg text-xs bg-slate-800 hover:bg-slate-700 text-slate-300 flex items-center gap-1.5 transition">
+                <span id="cloud-indicator-dot" class="w-2 h-2 rounded-full bg-emerald-400 shadow-sm shadow-emerald-400"></span>
+                <span class="text-[11px] font-semibold text-slate-300" id="cloud-indicator-text">Online</span>
+            </button>
+            <button onclick="switchTab('library')" id="btn-library" class="px-2.5 md:px-3 py-1.5 rounded-lg text-xs md:text-sm font-semibold bg-amber-500 text-slate-950 transition">Canciones</button>
+            <button onclick="switchTab('setlist')" id="btn-setlist" class="px-2.5 md:px-3 py-1.5 rounded-lg text-xs md:text-sm font-semibold bg-slate-800 text-slate-300 hover:text-white transition">
+                Setlist (<span id="setlist-count">0</span>)
+            </button>
+            <button onclick="switchTab('add')" id="btn-add" class="px-2.5 md:px-3 py-1.5 rounded-lg text-xs md:text-sm font-semibold bg-slate-800 text-slate-300 hover:text-white transition">➕ Nueva</button>
+        </div>
+    </header>
+
+    <main id="main-content" class="flex-1 max-w-2xl w-full mx-auto p-3.5 md:p-4 pb-24">
+
+        <div id="new-setlist-alert" class="hidden bg-gradient-to-r from-amber-500 to-amber-600 text-slate-950 p-3 rounded-2xl shadow-xl flex items-center justify-between gap-2 border border-amber-400 mb-3 animate-pulse">
+            <div class="flex items-center gap-2.5 min-w-0">
+                <span class="text-2xl shrink-0">🔔</span>
+                <div class="min-w-0 truncate">
+                    <h4 class="text-xs font-black uppercase tracking-wider">¡Pauta de ensayo publicada!</h4>
+                    <p id="new-setlist-alert-text" class="text-xs font-semibold text-slate-900 truncate">Lista de canciones actualizada para el grupo.</p>
+                </div>
+            </div>
+            <button onclick="dismissAndOpenNotificationSetlist()" class="bg-slate-950 text-amber-400 hover:text-white px-3 py-1.5 rounded-xl text-xs font-bold transition shrink-0 shadow">Ver Pauta</button>
+        </div>
+
+        <div id="enable-notifications-banner" class="hidden bg-slate-900 border border-amber-500/30 p-2.5 rounded-xl flex items-center justify-between gap-2 mb-3 text-xs">
+            <span class="text-slate-300">🔔 ¿Activar avisos en tu teléfono al publicarse la pauta?</span>
+            <button onclick="requestNotificationPermission()" class="bg-amber-500 hover:bg-amber-400 text-slate-950 font-bold px-3 py-1 rounded-lg transition shrink-0">Activar</button>
+        </div>
+
+        <section id="view-library" class="space-y-4">
+            <div class="flex gap-2">
+                <input type="text" id="search-input" oninput="filterSongs()" placeholder="🔍 Buscar canción, artista o cantante..." class="w-full bg-slate-900 border border-slate-800 rounded-xl px-4 py-2.5 text-sm text-slate-100 placeholder-slate-500 focus:outline-none focus:border-amber-500 focus:ring-1 focus:ring-amber-500 transition">
+                <button onclick="toggleBackupMenu()" title="Copias de seguridad" class="bg-slate-900 border border-slate-800 hover:border-amber-500/50 text-slate-300 px-3 py-2 rounded-xl text-xs font-semibold flex items-center gap-1 transition">💾</button>
+            </div>
+
+            <div id="backup-menu" class="hidden bg-slate-900 border border-slate-800 rounded-xl p-3 text-xs space-y-2">
+                <div class="flex justify-between items-center text-slate-300 font-semibold border-b border-slate-800 pb-1.5">
+                    <span>📦 Copia de Seguridad del Repertorio</span>
+                    <button onclick="toggleBackupMenu()" class="text-slate-500 hover:text-slate-300">✕</button>
+                </div>
+                <div class="flex gap-2 pt-1">
+                    <button onclick="exportRepertoire()" class="flex-1 bg-slate-800 hover:bg-slate-700 text-amber-300 py-1.5 px-3 rounded-lg font-medium transition text-center">⬇️ Descargar Backup (.json)</button>
+                    <label class="flex-1 bg-slate-800 hover:bg-slate-700 text-slate-300 py-1.5 px-3 rounded-lg font-medium transition text-center cursor-pointer">
+                        ⬆️ Restaurar Backup
+                        <input type="file" accept=".json" onchange="importRepertoire(event)" class="hidden">
+                    </label>
+                </div>
+            </div>
+
+            <div id="singer-chips-container" class="flex gap-2 overflow-x-auto pb-1 text-xs no-scrollbar"></div>
+            <div id="songs-container" class="space-y-2.5"></div>
+        </section>
+
+        <section id="view-viewer" class="hidden space-y-3.5">
+            <div class="flex justify-between items-center gap-2">
+                <button id="viewer-back-btn" onclick="handleViewerBack()" class="text-xs md:text-sm text-amber-400 hover:text-amber-300 font-medium flex items-center gap-1 transition">
+                    <span id="viewer-back-label">← Volver</span>
+                </button>
+                <div class="flex items-center gap-1.5">
+                    <button onclick="openQuickLyricsEditor()" title="Editar letra y acordes al vuelo" class="bg-slate-900 border border-slate-800 hover:border-amber-500/50 text-amber-400 hover:text-amber-300 px-2.5 py-1.5 rounded-lg text-xs font-semibold flex items-center gap-1 transition active:scale-95">
+                        <span>✏️</span> <span class="hidden xs:inline">Letra</span>
+                    </button>
+                    <div class="bg-slate-900 border border-slate-800 rounded-lg flex items-center p-0.5">
+                        <button onclick="changeFontSize(-1)" title="Reducir letra" class="px-2 py-1 text-xs text-slate-300 hover:text-white font-bold hover:bg-slate-800 rounded">A-</button>
+                        <span id="font-size-label" class="text-[11px] text-slate-500 px-1 font-mono">100%</span>
+                        <button onclick="changeFontSize(1)" title="Aumentar letra" class="px-2 py-1 text-xs text-slate-300 hover:text-white font-bold hover:bg-slate-800 rounded">A+</button>
+                    </div>
+                    <button onclick="toggleFullScreen()" title="Pantalla Completa" class="bg-slate-900 border border-slate-800 hover:border-amber-500/50 text-slate-300 hover:text-amber-400 px-2.5 py-1.5 rounded-lg text-xs font-semibold transition">⛶</button>
+                </div>
+            </div>
+            
+            <div class="bg-slate-900 border border-slate-800 rounded-2xl p-4 shadow-lg space-y-3">
+                <div class="flex justify-between items-start gap-2">
+                    <div>
+                        <div class="flex items-center gap-2">
+                            <h2 id="view-title" class="text-lg md:text-xl font-bold text-white tracking-tight">Título</h2>
+                            <span id="stage-badge" class="hidden bg-amber-500 text-slate-950 text-[10px] uppercase tracking-wider px-2 py-0.5 rounded-full font-black">EN VIVO</span>
+                        </div>
+                        <p id="view-artist" class="text-xs text-slate-400">Artista</p>
+                    </div>
+
+                    <!-- Indicador Visual de Metrónomo -->
+                    <div id="visual-metronome" class="hidden flex items-center gap-2 bg-slate-900 border border-slate-800 px-3 py-1.5 rounded-xl w-fit my-2">
+                        <div id="metronome-dot" class="w-3 h-3 rounded-full bg-slate-600 transition-all duration-100 shadow-sm shadow-amber-500/50"></div>
+                        <span class="text-xs font-mono font-bold text-amber-400"><span id="metronome-bpm-val">0</span> BPM</span>
+                    </div>
+
+                    <div class="text-right flex flex-col items-end gap-1">
+                        <span id="view-singer-badge" class="bg-amber-500/20 text-amber-300 text-xs px-2.5 py-1 rounded-full font-semibold border border-amber-500/30">Cantante</span>
+                        <span id="view-rhythm-badge" class="text-[10px] text-slate-400 font-mono"></span>
+                    </div>
+                </div>
+
+                <div id="view-notes-box" class="hidden bg-amber-500/10 border-l-2 border-amber-400 p-2 rounded-r-lg text-xs text-amber-200/90 font-mono">
+                    💡 <span id="view-notes-text"></span>
+                </div>
+
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-2 pt-1 border-t border-slate-800">
+                    <div id="autoscroll-panel" class="bg-slate-950/70 p-2.5 rounded-xl border border-slate-800/80 flex items-center justify-between">
+                        <div class="flex flex-col">
+                            <span class="text-[10px] uppercase tracking-wider text-slate-400 font-bold">Auto-Scroll</span>
+                            <span id="autoscroll-speed-label" class="text-xs font-bold text-slate-300 font-mono">Vel: 2</span>
+                        </div>
+                        <div class="flex items-center gap-1.5">
+                            <button onclick="adjustScrollSpeed(-1)" title="Más lento" class="bg-slate-800 hover:bg-slate-700 text-slate-200 px-2 py-1.5 rounded-lg text-xs font-bold transition">🐢</button>
+                            <button id="autoscroll-btn" onclick="toggleAutoScroll()" class="bg-amber-500 hover:bg-amber-400 text-slate-950 px-3 py-1.5 rounded-lg text-xs font-black transition active:scale-95 flex items-center gap-1">
+                                <span id="autoscroll-icon">▶</span> <span id="autoscroll-text">Scroll</span>
+                            </button>
+                            <button onclick="adjustScrollSpeed(1)" title="Más rápido" class="bg-slate-800 hover:bg-slate-700 text-slate-200 px-2 py-1.5 rounded-lg text-xs font-bold transition">🐇</button>
+                        </div>
+                    </div>
+                </div>
+
+                <div id="library-management-panel" class="space-y-3 pt-2 border-t border-slate-800">
+                    <div class="bg-slate-950/80 p-3 rounded-xl border border-slate-800 space-y-2">
+                        <span class="text-xs text-amber-300 font-semibold block">✏️ Modificar versión:</span>
+                        <button onclick="saveSongEdits()" class="w-full bg-slate-800 hover:bg-slate-700 text-amber-300 py-2 rounded-lg text-xs font-bold transition flex items-center justify-center gap-2">
+                            <span>💾</span> Fijar tono en vivo como Original
+                        </button>
+                    </div>
+                    
+                    <div class="grid grid-cols-2 gap-2">
+                        <button onclick="addToCurrentSetlist()" class="bg-amber-500 hover:bg-amber-400 text-slate-950 py-2 rounded-xl text-xs font-bold transition flex items-center justify-center gap-1.5">
+                            📌 Agregar a Setlist
+                        </button>
+                        <button onclick="duplicateForAnotherSinger()" class="bg-slate-800 hover:bg-slate-700 text-slate-200 py-2 rounded-xl text-xs font-semibold transition" title="Crea una copia para otro vocalista manteniendo la letra">
+                            👥 Clonar para vocalista
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <div id="chord-chart-container" class="bg-slate-900 border border-slate-800 rounded-2xl p-3.5 md:p-5 shadow-inner overflow-x-auto min-h-[300px]"></div>
+
+            <div id="stage-nav-bar" class="hidden sticky bottom-2 z-40 bg-slate-900/95 backdrop-blur-md border border-slate-700/80 p-2.5 rounded-2xl shadow-2xl flex items-center justify-between gap-2">
+                <button id="nav-prev-btn" onclick="navigateSetlist(-1)" class="flex-1 bg-slate-800 hover:bg-slate-700 disabled:opacity-30 disabled:pointer-events-none text-slate-200 py-2.5 px-3 rounded-xl text-xs font-bold transition flex items-center justify-center gap-1">
+                    <span>◀</span>
+                    <span class="truncate" id="nav-prev-text">Anterior</span>
+                </button>
+                <div class="px-2 text-center select-none">
+                    <span id="nav-counter" class="text-xs font-mono font-bold text-amber-400 block">1 / 1</span>
+                    <span class="text-[9px] uppercase tracking-wider text-slate-400 font-semibold block">Pauta</span>
+                </div>
+                <button id="nav-next-btn" onclick="navigateSetlist(1)" class="flex-1 bg-amber-500 hover:bg-amber-400 disabled:opacity-30 disabled:pointer-events-none text-slate-950 py-2.5 px-3 rounded-xl text-xs font-black transition flex items-center justify-center gap-1 shadow-lg shadow-amber-500/20">
+                    <span class="truncate" id="nav-next-text">Siguiente</span>
+                    <span>▶</span>
+                </button>
+            </div>
+        </section>
+
+        <section id="view-setlist" class="space-y-3.5 hidden">
+            <div class="bg-slate-900 border border-slate-800 rounded-2xl p-3.5 shadow-lg space-y-3">
+                <div class="flex items-center gap-1.5">
+                    <div class="flex-1 min-w-0">
+                        <label class="block text-[10px] text-slate-400 uppercase tracking-wider font-bold mb-1">Pauta Activa</label>
+                        <select id="setlist-select" onchange="switchActiveSetlist(this.value)" class="w-full bg-slate-950 border border-slate-700/80 rounded-xl px-3 py-2 text-xs md:text-sm font-semibold text-amber-300 focus:outline-none focus:border-amber-500 truncate"></select>
+                    </div>
+                    <div class="flex items-end gap-1 pt-4">
+                        <button onclick="createNewSetlist()" title="Crear nueva pauta" class="bg-slate-800 hover:bg-slate-700 text-amber-400 p-2 rounded-xl text-xs font-bold transition">➕</button>
+                        <button onclick="renameCurrentSetlist()" title="Renombrar esta pauta" class="bg-slate-800 hover:bg-slate-700 text-slate-300 p-2 rounded-xl text-xs transition">✏️</button>
+                        <button onclick="duplicateCurrentSetlist()" title="Duplicar pauta" class="bg-slate-800 hover:bg-slate-700 text-slate-300 p-2 rounded-xl text-xs transition">📋</button>
+                        <button onclick="deleteCurrentSetlist()" title="Eliminar pauta" class="bg-slate-800 hover:bg-red-500/20 text-slate-500 hover:text-red-400 p-2 rounded-xl text-xs transition">🗑️</button>
+                    </div>
+                </div>
+
+                <div class="flex flex-col sm:flex-row gap-2 pt-1 border-t border-slate-800/80">
+                    <button id="btn-start-show" onclick="startSetlistShow()" class="flex-1 bg-amber-500 hover:bg-amber-400 text-slate-950 font-black py-2.5 px-3 rounded-xl text-xs md:text-sm transition flex items-center justify-center gap-2 shadow-md shadow-amber-500/20 active:scale-98">
+                        <span>▶️</span> INICIAR ENSAYO
+                    </button>
+
+                    <div class="flex gap-1.5">
+                        <button onclick="publishAndNotifySetlist()" title="Notificar a la aplicación de todos los integrantes" class="flex-1 sm:flex-none bg-amber-500 hover:bg-amber-400 text-slate-950 font-black py-2.5 px-3.5 rounded-xl text-xs flex items-center justify-center gap-1.5 transition active:scale-95 shadow shadow-amber-500/30">
+                            <span>📢</span> <span>Notificar Pauta</span>
+                        </button>
+                        <button onclick="notifyGroupWhatsApp()" title="Enviar resumen por WhatsApp al grupo" class="bg-emerald-600 hover:bg-emerald-500 text-white font-bold py-2.5 px-3 rounded-xl text-xs flex items-center justify-center gap-1 transition active:scale-95 shadow shadow-emerald-900/30">
+                            <span>💬</span> <span class="hidden xs:inline">WhatsApp</span>
+                        </button>
+                        <button onclick="shareSetlistNative()" title="Compartir o copiar lista de canciones" class="bg-slate-800 hover:bg-slate-700 text-slate-200 font-semibold py-2.5 px-3 rounded-xl text-xs flex items-center justify-center gap-1 transition active:scale-95">
+                            <span>📲</span>
+                        </button>
+                    </div>
+                </div>
+            </div>
+            <div id="setlist-container" class="space-y-2"></div>
+        </section>
+
+        <section id="view-add" class="hidden space-y-4">
+            <div class="bg-slate-900 border border-slate-800 rounded-2xl p-4 md:p-5 space-y-4 shadow-lg">
+                <h2 class="text-lg font-bold text-amber-400">Cargar Nueva Canción</h2>
+                <div>
+                    <label class="block text-xs font-medium text-slate-300 mb-1">Carga rápida desde archivo de texto (.txt)</label>
+                    <input type="file" id="txt-file-input" accept=".txt" onchange="handleTxtUpload(event)" class="w-full text-xs text-slate-400 file:mr-3 file:py-2 file:px-4 file:rounded-xl file:border-0 file:text-xs file:font-semibold file:bg-amber-500 file:text-slate-950 hover:file:bg-amber-400 cursor-pointer">
+                </div>
+                <hr class="border-slate-800">
+
+                <form id="add-song-form" onsubmit="saveNewSong(event)" class="space-y-3">
+                    <div>
+                        <label class="block text-xs font-medium text-slate-300 mb-1">Título de la canción *</label>
+                        <input type="text" id="new-title" required class="w-full bg-slate-950 border border-slate-800 rounded-xl px-3.5 py-2 text-sm text-white focus:outline-none focus:border-amber-500">
+                    </div>
+
+                    <div class="grid grid-cols-2 gap-2">
+                        <div>
+                            <label class="block text-xs font-medium text-slate-300 mb-1">Artista Original *</label>
+                            <input type="text" id="new-artist" required class="w-full bg-slate-950 border border-slate-800 rounded-xl px-3.5 py-2 text-sm text-white focus:outline-none focus:border-amber-500">
+                        </div>
+                        <div>
+                            <label class="block text-xs font-medium text-slate-300 mb-1">Cantante Asignado *</label>
+                            <input type="text" id="new-singer" required class="w-full bg-slate-950 border border-slate-800 rounded-xl px-3.5 py-2 text-sm text-white focus:outline-none focus:border-amber-500">
+                        </div>
+                    </div>
+
+                    <div class="grid grid-cols-2 gap-2">
+                        <div>
+                            <label class="block text-xs font-medium text-slate-300 mb-1">Tono Base *</label>
+                            <select id="new-tone" onchange="updateNewSongHarmonicCircle(this.value)" class="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-sm text-white focus:outline-none focus:border-amber-500">
+                                <option value="C">C</option><option value="C#">C# / Db</option><option value="D">D</option><option value="D#">D# / Eb</option><option value="E">E</option><option value="F">F</option><option value="F#">F# / Gb</option><option value="G" selected>G</option><option value="G#">G# / Ab</option><option value="A">A</option><option value="A#">A# / Bb</option><option value="B">B</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label class="block text-xs font-medium text-slate-300 mb-1">Ritmo</label>
+                            <select id="new-rhythm" class="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-sm text-white focus:outline-none focus:border-amber-500">
+                                <option value="Rápida">⚡ Rápida</option>
+                                <option value="Lenta">🐢 Lenta</option>
+                            </select>
+                        </div>  
+                    </div>
+
+                    <div>
+                        <label class="block text-xs font-medium text-slate-300 mb-1">Tempo (BPM)</label>
+                        <input type="number" id="new-bpm" placeholder="Ej. 120" class="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-sm text-white focus:outline-none focus:border-amber-500">
+                    </div>
+
+                    <div>
+                        <label class="block text-xs font-medium text-slate-300 mb-1">Notas para la banda (Opcional)</label>
+                        <input type="text" id="new-notes" placeholder="Ej. Entra solo teclado; final en corte seco..." class="w-full bg-slate-950 border border-slate-800 rounded-xl px-3.5 py-2 text-xs text-white focus:outline-none focus:border-amber-500">
+                    </div>
+
+                    <div class="space-y-1.5 pt-1">
+                        <div class="flex items-center justify-between">
+                            <label class="block text-xs font-bold text-amber-300 flex items-center gap-1">
+                                <span>🎸</span> Círculo Armónico (<span id="new-song-tone-badge" class="font-mono">G</span>):
+                            </label>
+                            <button type="button" onclick="autoFormatTabsToBrackets('new-lyrics')" class="text-[11px] bg-amber-500/20 hover:bg-amber-500/30 text-amber-300 border border-amber-500/40 px-2.5 py-1 rounded-lg font-bold flex items-center gap-1 transition active:scale-95">
+                                <span>🪄</span> Auto-convertir texto de Internet a [Acordes]
+                            </button>
+                        </div>
+                        <div id="new-song-harmonic-chips" class="flex items-center gap-1.5 overflow-x-auto no-scrollbar py-1"></div>
+                        <textarea id="new-lyrics" rows="7" required placeholder="[Intro]&#10;[G] [D] [Em] [C]&#10;&#10;[Verso 1]&#10;[G] Voy a reír, voy a [D] bailar&#10;[Em] Vivir mi vida la, la, [C] la, la" class="w-full bg-slate-950 border border-slate-800 rounded-xl p-3 text-sm font-mono text-slate-100 focus:outline-none focus:border-amber-500"></textarea>
+                    </div>
+                    <button type="submit" class="w-full bg-amber-500 hover:bg-amber-400 text-slate-950 font-black py-2.5 rounded-xl text-sm transition">
+                        Guardar en Canciones
+                    </button>
+                </form>
+            </div>
+        </section>
+
+    </main>
+
+    <div id="quick-lyrics-modal" class="hidden fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-2.5 md:p-4">
+        <div class="bg-slate-900 border border-slate-800 rounded-2xl w-full max-w-xl max-h-[92vh] flex flex-col shadow-2xl overflow-hidden">
+            <div class="p-3 border-b border-slate-800 flex justify-between items-center bg-slate-950 shrink-0">
+                <div>
+                    <h3 class="font-bold text-white text-sm flex items-center gap-1.5"><span>✏️ Editor de Canción</span></h3>
+                    <p id="quick-lyrics-song-title" class="text-xs text-amber-400 font-mono font-semibold truncate">Canción</p>
+                </div>
+                <button onclick="closeQuickLyricsModal()" class="text-slate-400 hover:text-white p-1 text-sm font-bold">✕</button>
+            </div>
+            
+            <div class="p-3 bg-slate-900 border-b border-slate-800 grid grid-cols-2 gap-2 text-xs shrink-0 overflow-y-auto max-h-40">
+                <div class="col-span-2 sm:col-span-1">
+                    <label class="block text-slate-400 mb-1">Título</label>
+                    <input type="text" id="quick-edit-title" class="w-full bg-slate-950 border border-slate-700 rounded-lg px-2.5 py-1.5 text-white focus:border-amber-500 outline-none">
+                </div>
+                <div class="col-span-2 sm:col-span-1">
+                    <label class="block text-slate-400 mb-1">Artista</label>
+                    <input type="text" id="quick-edit-artist" class="w-full bg-slate-950 border border-slate-700 rounded-lg px-2.5 py-1.5 text-white focus:border-amber-500 outline-none">
+                </div>
+                <div>
+                    <label class="block text-slate-400 mb-1">Cantante</label>
+                    <input type="text" id="quick-edit-singer" class="w-full bg-slate-950 border border-slate-700 rounded-lg px-2.5 py-1.5 text-white focus:border-amber-500 outline-none">
+                </div>
+                <div>
+                    <label class="block text-slate-400 mb-1">Tempo (BPM)</label>
+                    <input type="number" id="quick-edit-bpm" placeholder="Ej. 120" class="w-full bg-slate-950 border border-slate-700 rounded-lg px-2.5 py-1.5 text-white focus:border-amber-500 outline-none">
+                </div>
+                <div>
+                    <label class="block text-slate-400 mb-1">Tono Base</label>
+                    <select id="quick-edit-tone" class="w-full bg-slate-950 border border-slate-700 rounded-lg px-2 py-1.5 text-white focus:border-amber-500 outline-none">
+                        <option value="C">C</option><option value="C#">C# / Db</option><option value="D">D</option><option value="D#">D# / Eb</option><option value="E">E</option><option value="F">F</option><option value="F#">F# / Gb</option><option value="G">G</option><option value="G#">G# / Ab</option><option value="A">A</option><option value="A#">A# / Bb</option><option value="B">B</option>
+                    </select>
+                </div>
+                <div>
+                    <label class="block text-slate-400 mb-1">Ritmo</label>
+                    <input type="text" id="quick-edit-rhythm" class="w-full bg-slate-950 border border-slate-700 rounded-lg px-2.5 py-1.5 text-white focus:border-amber-500 outline-none">
+                </div>
+                <div class="col-span-2">
+                    <label class="block text-slate-400 mb-1">Notas</label>
+                    <input type="text" id="quick-edit-notes" class="w-full bg-slate-950 border border-slate-700 rounded-lg px-2.5 py-1.5 text-white focus:border-amber-500 outline-none">
+                </div>
+            </div>
+           
+            <div class="px-3 py-1.5 bg-slate-950/90 border-b border-slate-800 flex items-center justify-between gap-2 overflow-x-auto no-scrollbar shrink-0">
+                <div class="flex items-center gap-1.5 shrink-0">
+                    <span class="text-[10px] text-amber-400 font-bold uppercase tracking-wider">Círculo:</span>
+                    <select id="quick-modal-tone-select" onchange="renderHarmonicCircleChips(this.value, 'quick-lyrics-harmonic-chips', 'quick-lyrics-textarea')" class="bg-slate-900 border border-slate-700 text-amber-400 font-bold text-xs rounded-lg px-2 py-0.5 focus:outline-none">
+                        <option value="C">C</option><option value="C#">C# / Db</option><option value="D">D</option><option value="D#">D# / Eb</option><option value="E">E</option><option value="F">F</option><option value="F#">F# / Gb</option><option value="G">G</option><option value="G#">G# / Ab</option><option value="A">A</option><option value="A#">A# / Bb</option><option value="B">B</option>
+                    </select>
+                </div>
+                <div id="quick-lyrics-harmonic-chips" class="flex items-center gap-1 overflow-x-auto no-scrollbar py-0.5"></div>
+            </div>
+            <div class="px-3 py-1.5 bg-slate-900 border-b border-slate-800 flex items-center justify-between gap-1.5 overflow-x-auto no-scrollbar shrink-0 text-xs">
+                <div class="flex items-center gap-1 shrink-0">
+                    <span class="text-[10px] text-slate-400 font-semibold uppercase">Estructura:</span>
+                    <button type="button" onclick="insertChordAtCursor('[Intro]\n', 'quick-lyrics-textarea')" class="px-2 py-0.5 rounded bg-amber-500/10 text-amber-300 hover:bg-amber-500/20 font-semibold text-[11px] shrink-0">[Intro]</button>
+                    <button type="button" onclick="insertChordAtCursor('[Coro]\n', 'quick-lyrics-textarea')" class="px-2 py-0.5 rounded bg-amber-500/10 text-amber-300 hover:bg-amber-500/20 font-semibold text-[11px] shrink-0">[Coro]</button>
+                    <button type="button" onclick="insertChordAtCursor('[Verso]\n', 'quick-lyrics-textarea')" class="px-2 py-0.5 rounded bg-amber-500/10 text-amber-300 hover:bg-amber-500/20 font-semibold text-[11px] shrink-0">[Verso]</button>
+                    <button type="button" onclick="insertChordAtCursor('[Solo]\n', 'quick-lyrics-textarea')" class="px-2 py-0.5 rounded bg-amber-500/10 text-amber-300 hover:bg-amber-500/20 font-semibold text-[11px] shrink-0">[Solo]</button>
+                </div>
+                <button type="button" onclick="autoFormatTabsToBrackets('quick-lyrics-textarea')" class="text-[11px] bg-amber-500/20 hover:bg-amber-500/30 text-amber-300 border border-amber-500/40 px-2 py-0.5 rounded-lg font-bold flex items-center gap-1 shrink-0 transition active:scale-95">
+                    <span>🪄</span> Auto-formato Internet
+                </button>
+            </div>
+            <div class="p-3 flex-1 overflow-hidden flex flex-col min-h-[260px]">
+                <textarea id="quick-lyrics-textarea" rows="12" class="w-full flex-1 bg-slate-950 border border-slate-800 rounded-xl p-3 font-mono text-xs md:text-sm text-slate-100 focus:outline-none focus:border-amber-500 leading-snug" placeholder="Letra con acordes entre corchetes..."></textarea>
+            </div>
+            <div class="p-3 border-t border-slate-800 bg-slate-950 flex justify-end gap-2 shrink-0">
+                <button onclick="closeQuickLyricsModal()" class="px-3.5 py-1.5 rounded-xl text-xs font-semibold bg-slate-800 text-slate-300 hover:text-white transition">Cancelar</button>
+                <button onclick="saveQuickLyrics()" class="px-4 py-1.5 rounded-xl text-xs font-bold bg-amber-500 hover:bg-amber-400 text-slate-950 transition">💾 Guardar Correcciones</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Librerías de Firebase -->
+    <script src="https://www.gstatic.com/firebasejs/10.10.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.10.0/firebase-database-compat.js"></script>
+
+    <script>
+        const firebaseConfig = {
+            apiKey: "AIzaSyA4oDroZXWse8YsxxzXXRpmtu6TpPDBR7g",
+            authDomain: "ensayosapp-927a1.firebaseapp.com",
+            databaseURL: "https://ensayosapp-927a1-default-rtdb.firebaseio.com",
+            projectId: "ensayosapp-927a1",
+            storageBucket: "ensayosapp-927a1.firebasestorage.app",
+            messagingSenderId: "1033909001366",
+            appId: "1:1033909001366:web:925cc480b455200f77f6b7"
+        };
+        
+        firebase.initializeApp(firebaseConfig);
+        const db = firebase.database();
+        const bandaRef = db.ref('ensayos_banda');
+
+        let isSyncingFromCloud = false; 
+        let latestNotificationData = null;
+
+        let songs = JSON.parse(localStorage.getItem('group_songs')) || [
+            { 
+                id: 1, 
+                title: "Vivir Mi Vida", 
+                artist: "Marc Anthony", 
+                singer: "Carlos", 
+                tone: "G", 
+                rhythm: "Salsa", 
+                bpm: "105",
+                notes: "Entrada con metales en compás 4. Solo de trompeta en el puente.",
+                lyrics: "[Intro]\n[G] [D] [Em] [C]\n\n[Coro]\n[G] Voy a reír, voy a [D] bailar\n[Em] Vivir mi vida la, la, [C] la, la\n[G] Voy a reír, voy a [D] gozar\n[Em] Vivir mi vida la, la, [C] la, la" 
+            },
+            { 
+                id: 2, 
+                title: "Héroe", 
+                artist: "Enrique Iglesias", 
+                singer: "María", 
+                tone: "C", 
+                rhythm: "Balada", 
+                bpm: "72",
+                notes: "Guitarra acústica arpegiada en el verso 1.",
+                lyrics: "[Verso]\n[C] Si pudiera ser tu [G/B] héroe\n[Am] Si pudiera ser tu [F] Dios\n[C] Que te salvaría a [G/B] ti\n[Am] Mil veces del [F] dolor" 
+            }
+        ];
+
+        let setlists = JSON.parse(localStorage.getItem('group_setlists')) || [
+            {
+                id: "setlist_default",
+                name: "Pauta Ensayo Principal",
+                date: new Date().toISOString().slice(0, 10),
+                songs: JSON.parse(localStorage.getItem('group_setlist')) || [
+                    { ...songs[0], currentToneInSession: songs[0].tone, uniqueKey: 101 },
+                    { ...songs[1], currentToneInSession: songs[1].tone, uniqueKey: 102 }
+                ]
+            }
+        ];
+
+        let activeSetlistId = localStorage.getItem('group_active_setlist_id') || (setlists[0] ? setlists[0].id : null);
+
+        let activeSong = null;
+        let transposeSteps = 0;
+        let viewerSource = 'library';
+        let currentSetlistIndex = -1;
+        let currentFontScale = 100;
+        let autoScrollInterval = null;
+        let autoScrollSpeed = 2;
+        let wakeLockSentinel = null;
+
+        const chromaticScale = ["C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B"];
+        const flatToSharpMap = { "DB": "C#", "EB": "D#", "GB": "F#", "AB": "G#", "BB": "A#" };
+
+        bandaRef.on('value', (snapshot) => {
+            const data = snapshot.val();
+            if (data) {
+                isSyncingFromCloud = true; 
+                songs = data.songs || [];
+                setlists = data.setlists || [];
+                
+                setlists.forEach(s => {
+                    if (!s.songs) s.songs = [];
+                });
+
+                if (data.activeSetlistId) activeSetlistId = data.activeSetlistId;
+                if (data.lastNotification) latestNotificationData = data.lastNotification;
+                
+                localStorage.setItem('group_songs', JSON.stringify(songs));
+                localStorage.setItem('group_setlists', JSON.stringify(setlists));
+                localStorage.setItem('group_active_setlist_id', activeSetlistId);
+                const active = getActiveSetlist();
+                localStorage.setItem('group_setlist', JSON.stringify(active.songs));
+                
+                const countBadge = document.getElementById('setlist-count');
+                if(countBadge) countBadge.innerText = active.songs.length;
+
+                renderSingerChips();
+                renderLibrary(songs);
+                renderSetlistSelector();
+                renderSetlist();
+                updateCloudIndicator(true);
+
+                if (latestNotificationData) {
+                    checkNewSetlistNotification(latestNotificationData);
+                }
+                
+                setTimeout(() => { isSyncingFromCloud = false; }, 500);
+            }
+        });
+
+        async function syncUploadToCloud(silent = true) {
+            if (isSyncingFromCloud) return; 
+
+            const payload = {
+                updatedAt: new Date().toISOString(),
+                songs: songs,
+                setlists: setlists,
+                activeSetlistId: activeSetlistId,
+                lastNotification: latestNotificationData || JSON.parse(localStorage.getItem('group_last_notification') || 'null')
+            };
+
+            try {
+                await bandaRef.set(payload);
+                updateCloudIndicator(true);
+                if (!silent) showNotification("⚡ ¡Online!");
+            } catch (err) {
+                updateCloudIndicator(false);
+            }
+        }
+
+        function getActiveSetlist() {
+            let active = setlists.find(s => s.id === activeSetlistId);
+            if (!active) {
+                if (setlists.length === 0) {
+                    setlists.push({ id: "setlist_" + Date.now(), name: "Pauta Ensayo 1", date: new Date().toISOString().slice(0, 10), songs: [] });
+                }
+                activeSetlistId = setlists[0].id;
+                active = setlists[0];
+            }
+            return active;
+        }
+
+        function saveData() {
+            const active = getActiveSetlist();
+            localStorage.setItem('group_songs', JSON.stringify(songs));
+            localStorage.setItem('group_setlists', JSON.stringify(setlists));
+            localStorage.setItem('group_active_setlist_id', activeSetlistId);
+            localStorage.setItem('group_setlist', JSON.stringify(active.songs));
+            document.getElementById('setlist-count').innerText = active.songs.length;
+        }
+
+        function updateCloudIndicator(online = true) {
+            const dot = document.getElementById('cloud-indicator-dot');
+            const text = document.getElementById('cloud-indicator-text');
+            if (!dot || !text) return;
+            if (online) {
+                dot.className = "w-2 h-2 rounded-full bg-emerald-400 shadow-sm shadow-emerald-400";
+                text.innerText = "Online";
+            } else {
+                dot.className = "w-2 h-2 rounded-full bg-amber-400";
+                text.innerText = "Modo Local";
+            }
+        }
+
+        function manualCloudSync() {
+            showNotification("⚡ Sistema Online");
+        }
+
+        function getHarmonicCircle(tone) {
+            if (!tone) return ["C", "Dm", "Em", "F", "G", "G7", "Am"];
+            let clean = normalizeNote(tone.replace(/m$/, '').replace(/maj.*$/, ''));
+            let isMinor = /m$/.test(tone) && !/maj/.test(tone);
+            let idx = chromaticScale.indexOf(clean);
+            if (idx === -1) idx = 0;
+
+            if (isMinor) {
+                let i = tone;
+                let ii_dim = chromaticScale[(idx + 2) % 12] + "dim";
+                let III = chromaticScale[(idx + 3) % 12];
+                let iv = chromaticScale[(idx + 5) % 12] + "m";
+                let v = chromaticScale[(idx + 7) % 12] + "m";
+                let V7 = chromaticScale[(idx + 7) % 12] + "7";
+                let VI = chromaticScale[(idx + 8) % 12];
+                let VII = chromaticScale[(idx + 10) % 12];
+                let slash1 = `${tone}/${chromaticScale[(idx + 10) % 12]}`;
+                return [i, III, iv, v, V7, VI, VII, ii_dim, slash1];
+            } else {
+                let I = clean;
+                let ii = chromaticScale[(idx + 2) % 12] + "m";
+                let iii = chromaticScale[(idx + 4) % 12] + "m";
+                let IV = chromaticScale[(idx + 5) % 12];
+                let V = chromaticScale[(idx + 7) % 12];
+                let V7 = chromaticScale[(idx + 7) % 12] + "7";
+                let vi = chromaticScale[(idx + 9) % 12] + "m";
+                let slash1 = `${clean}/${chromaticScale[(idx + 4) % 12]}`; 
+                let slash2 = `${V}/${chromaticScale[(idx + 11) % 12]}`;   
+                return [I, ii, iii, IV, V, V7, vi, slash1, slash2];
+            }
+        }
+
+        function renderHarmonicCircleChips(tone, containerId, targetTextareaId) {
+            const container = document.getElementById(containerId);
+            if (!container) return;
+            container.innerHTML = "";
+            const chords = getHarmonicCircle(tone);
+
+            chords.forEach(chord => {
+                const btn = document.createElement('button');
+                btn.type = 'button';
+                btn.className = "px-2 py-1 rounded-lg bg-slate-800 hover:bg-slate-700 text-amber-400 font-mono font-bold text-xs shrink-0 transition active:scale-95 border border-slate-700/60 shadow-sm";
+                btn.innerText = `[${chord}]`;
+                btn.onclick = (e) => {
+                    e.preventDefault();
+                    insertChordAtCursor(`[${chord}]`, targetTextareaId);
+                };
+                container.appendChild(btn);
+            });
+        }
+
+        function updateNewSongHarmonicCircle(tone) {
+            document.getElementById('new-song-tone-badge').innerText = tone;
+            renderHarmonicCircleChips(tone, 'new-song-harmonic-chips', 'new-lyrics');
+        }
+
+        const latinToAngloMap = { 
+            'DO': 'C', 'RE': 'D', 'MI': 'E', 'FA': 'F', 'SOL': 'G', 'LA': 'A', 'SI': 'B',
+            'Do': 'C', 'Re': 'D', 'Mi': 'E', 'Fa': 'F', 'Sol': 'G', 'La': 'A', 'Si': 'B'
+        };
+
+        function normalizeChordToken(token) {
+            if (!token) return '';
+            let clean = token.trim();
+            const latinMatch = clean.match(/^(Do|Re|Mi|Fa|Sol|La|Si)(#|b)?(.*)$/i);
+            if (latinMatch) {
+                let baseKey = latinMatch[1].toUpperCase();
+                let base = '';
+                if (baseKey === 'DO') base = 'C';
+                else if (baseKey === 'RE') base = 'D';
+                else if (baseKey === 'MI') base = 'E';
+                else if (baseKey === 'FA') base = 'F';
+                else if (baseKey === 'SOL') base = 'G';
+                else if (baseKey === 'LA') base = 'A';
+                else if (baseKey === 'SI') base = 'B';
+                
+                let acc = latinMatch[2] || '';
+                let rest = latinMatch[3] || '';
+                clean = base + acc + rest;
+            }
+            return clean;
+        }
+
+        const chordTokenRegex = /^([A-Ga-g][#b]?)(m|maj|min|dim|aug|sus[24]?|[0-9]|add[0-9]|\+|-)*(M|maj7|m7|7|9|11|13|b5|#5)?(\([^\)]+\))?(\/[A-Ga-g][#b]?)?$/;
+        const latinChordTokenRegex = /^(Do|Re|Mi|Fa|Sol|La|Si)[#b]?(m|maj|min|dim|aug|sus[24]?|[0-9]|add[0-9]|\+|-)*(\/[A-Za-z#b]+)?$/i;
+
+        function isChordToken(token) {
+            if (!token) return false;
+            let t = token.replace(/[\(\),;:]/g, '');
+            return chordTokenRegex.test(t) || latinChordTokenRegex.test(t);
+        }
+
+        function isChordLine(line) {
+            let trimmed = line.trim();
+            if (!trimmed) return false;
+            if (/\[[A-G].*?\]/.test(trimmed)) return false; 
+
+            let tokens = trimmed.split(/\s+/).filter(Boolean);
+            if (tokens.length === 0) return false;
+
+            let chordCount = 0;
+            let sectionWords = /^(intro|solo|coro|verso|estrofa|puente|bridge|outro|x[0-9]+|bis|final):?$/i;
+
+            tokens.forEach(tok => {
+                if (isChordToken(tok) || sectionWords.test(tok)) chordCount++;
+            });
+
+            return (chordCount / tokens.length) >= 0.50;
+        }
+
+        function convertTabsToBracketedChords(rawText) {
+            if (!rawText) return '';
+            const lines = rawText.split(/\r?\n/);
+            const outputLines = [];
+
+            let i = 0;
+            while (i < lines.length) {
+                let line = lines[i];
+                let trimmed = line.trim();
+
+                let secMatch = trimmed.match(/^(Intro|Coro|Verso(\s*\d+)?|Estrofa(\s*\d+)?|Puente|Bridge|Solo(\s*de\s*\w+)?|Final|Outro|Pre-coro|Coda):?$/i);
+                if (secMatch) {
+                    let secName = trimmed.replace(/:$/, '').trim();
+                    outputLines.push(`[${secName}]`);
+                    i++;
+                    continue;
+                }
+
+                if (isChordLine(line)) {
+                    let chordsWithCol = [];
+                    const tokenReg = /\S+/g;
+                    let m;
+                    while ((m = tokenReg.exec(line)) !== null) {
+                        let tok = m[0];
+                        if (isChordToken(tok)) {
+                            chordsWithCol.push({ chord: normalizeChordToken(tok), col: m.index });
+                        }
+                    }
+
+                    let nextIdx = i + 1;
+                    let nextLine = nextIdx < lines.length ? lines[nextIdx] : null;
+
+                    if (nextLine !== null && nextLine.trim().length > 0 && !isChordLine(nextLine)) {
+                        let lyricLine = nextLine;
+                        chordsWithCol.sort((a, b) => b.col - a.col);
+
+                        chordsWithCol.forEach(item => {
+                            let tag = `[${item.chord}]`;
+                            if (item.col >= lyricLine.length) {
+                                lyricLine = lyricLine + ' ' + tag;
+                            } else {
+                                lyricLine = lyricLine.slice(0, item.col) + tag + lyricLine.slice(item.col);
+                            }
+                        });
+
+                        outputLines.push(lyricLine);
+                        i += 2; 
+                    } else {
+                        let bracketed = line.replace(/\S+/g, tok => {
+                            if (isChordToken(tok)) return `[${normalizeChordToken(tok)}]`;
+                            return tok;
+                        });
+                        outputLines.push(bracketed);
+                        i++;
+                    }
+                } else {
+                    outputLines.push(line);
+                    i++;
+                }
+            }
+
+            return outputLines.join('\n');
+        }
+
+        function autoFormatTabsToBrackets(textareaId) {
+            const textarea = document.getElementById(textareaId);
+            if (!textarea) return;
+            const originalText = textarea.value;
+            if (!originalText || !originalText.trim()) {
+                showNotification("Primero pega la letra con acordes en el cuadro de texto.");
+                return;
+            }
+
+            const savedScroll = textarea.scrollTop;
+            const converted = convertTabsToBracketedChords(originalText);
+            textarea.value = converted;
+            textarea.scrollTop = savedScroll;
+            showNotification("🪄 ¡Texto formateado con corchetes [C]!");
+        }
+
+        function switchTab(tab, fromHistory = false) {
+            stopAutoScroll();
+
+            if (!fromHistory) {
+                window.history.pushState({ tab: tab }, "", "#" + tab);
+            }
+
+            document.getElementById('view-library').classList.add('hidden');
+            document.getElementById('view-viewer').classList.add('hidden');
+            document.getElementById('view-setlist').classList.add('hidden');
+            document.getElementById('view-add').classList.add('hidden');
+
+            document.getElementById('btn-library').className = "px-2.5 md:px-3 py-1.5 rounded-lg text-xs md:text-sm font-semibold bg-slate-800 text-slate-300 hover:text-white transition";
+            document.getElementById('btn-setlist').className = "px-2.5 md:px-3 py-1.5 rounded-lg text-xs md:text-sm font-semibold bg-slate-800 text-slate-300 hover:text-white transition";
+            document.getElementById('btn-add').className = "px-2.5 md:px-3 py-1.5 rounded-lg text-xs md:text-sm font-semibold bg-slate-800 text-slate-300 hover:text-white transition";
+
+            if (tab === 'library') {
+                document.getElementById('view-library').classList.remove('hidden');
+                document.getElementById('btn-library').className = "px-2.5 md:px-3 py-1.5 rounded-lg text-xs md:text-sm font-semibold bg-amber-500 text-slate-950 transition";
+                renderSingerChips();
+                renderLibrary(songs);
+            } else if (tab === 'viewer') {
+                document.getElementById('view-viewer').classList.remove('hidden');
+            } else if (tab === 'setlist') {
+                document.getElementById('view-setlist').classList.remove('hidden');
+                document.getElementById('btn-setlist').className = "px-2.5 md:px-3 py-1.5 rounded-lg text-xs md:text-sm font-semibold bg-amber-500 text-slate-950 transition";
+                renderSetlistSelector();
+                renderSetlist();
+            } else if (tab === 'add') {
+                document.getElementById('view-add').classList.remove('hidden');
+                document.getElementById('btn-add').className = "px-2.5 md:px-3 py-1.5 rounded-lg text-xs md:text-sm font-semibold bg-amber-500 text-slate-950 transition";
+                updateNewSongHarmonicCircle(document.getElementById('new-tone').value);
+            }
+            saveData();
+        }
+
+        function handleViewerBack() {
+            window.history.back();
+        }
+
+        function renderSingerChips() {
+            const container = document.getElementById('singer-chips-container');
+            let singers = ['todos', ...new Set(songs.map(s => s.singer).filter(Boolean))];
+            container.innerHTML = "";
+            
+            singers.forEach((singer, idx) => {
+                const btn = document.createElement('button');
+                btn.className = `singer-chip px-3 py-1.5 rounded-full whitespace-nowrap text-xs font-semibold transition ${idx === 0 ? 'bg-amber-500 text-slate-950 shadow-sm shadow-amber-500/30' : 'bg-slate-900 border border-slate-800 text-slate-300 hover:text-white'}`;
+                btn.innerText = singer === 'todos' ? '🎤 Todos' : singer;
+                btn.onclick = (e) => filterBySinger(singer, e.currentTarget);
+                container.appendChild(btn);
+            });
+
+            const btnFast = document.createElement('button');
+            btnFast.className = "singer-chip px-3 py-1.5 rounded-full whitespace-nowrap text-xs font-semibold transition bg-slate-900 border border-slate-800 text-slate-300 hover:text-white";
+            btnFast.innerText = "⚡ Rápidas";
+            btnFast.onclick = (e) => filterByRhythm("Rápida", e.currentTarget);
+            container.appendChild(btnFast);
+
+            const btnSlow = document.createElement('button');
+            btnSlow.className = "singer-chip px-3 py-1.5 rounded-full whitespace-nowrap text-xs font-semibold transition bg-slate-900 border border-slate-800 text-slate-300 hover:text-white";
+            btnSlow.innerText = "🐢 Lentas";
+            btnSlow.onclick = (e) => filterByRhythm("Lenta", e.currentTarget);
+            container.appendChild(btnSlow);
+        }
+
+        function filterByRhythm(rhythmType, element) {
+            document.querySelectorAll('.singer-chip').forEach(btn => {
+                btn.className = "singer-chip px-3 py-1.5 rounded-full bg-slate-900 border border-slate-800 text-slate-300 hover:text-white whitespace-nowrap text-xs transition";
+            });
+            element.className = "singer-chip px-3 py-1.5 rounded-full bg-amber-500 text-slate-950 font-semibold whitespace-nowrap text-xs shadow-sm shadow-amber-500/30 transition";
+
+            const filtered = songs.filter(s => s.rhythm && s.rhythm.toLowerCase() === rhythmType.toLowerCase());
+            renderLibrary(filtered);
+        }
+
+        function renderLibrary(list) {
+            const container = document.getElementById('songs-container');
+            container.innerHTML = "";
+            if (list.length === 0) {
+                container.innerHTML = `<div class="text-center text-xs text-slate-500 py-10 bg-slate-900/50 border border-dashed border-slate-800 rounded-2xl">No se encontraron canciones.</div>`;
+                return;
+            }
+            list.forEach(song => {
+                const card = document.createElement('div');
+                card.className = "bg-slate-900 border border-slate-800 p-3.5 rounded-xl flex justify-between items-center cursor-pointer hover:border-amber-500/80 transition group shadow-sm";
+                card.onclick = () => openSongViewer(song.id, 'library');
+                card.innerHTML = `
+                    <div class="space-y-0.5 min-w-0 pr-2">
+                        <h3 class="font-bold text-white text-sm group-hover:text-amber-400 transition truncate">${song.title}</h3>
+                        <p class="text-xs text-slate-400 truncate">
+                            Artista: <span class="text-slate-300">${song.artist}</span> • Cantante: <span class="text-amber-400 font-semibold">${song.singer}</span>
+                        </p>
+                        ${song.rhythm ? `<span class="text-[10px] text-slate-500 font-mono">${song.rhythm} ${song.bpm ? '• ' + song.bpm + ' BPM' : ''}</span>` : ''}
+                    </div>
+                    <div class="text-right flex items-center gap-2 shrink-0">
+                        <span class="bg-amber-500/10 border border-amber-500/30 text-amber-400 text-xs px-2.5 py-1 rounded-lg font-mono font-bold">
+                            ${song.tone}
+                        </span>
+                        <button onclick="event.stopPropagation(); quickAddToSetlist(${song.id})" title="Añadir directo al Setlist" class="bg-slate-800 hover:bg-amber-500 hover:text-slate-950 text-slate-300 text-xs p-2 rounded-lg transition">
+                            ➕
+                        </button>
+                        <button onclick="event.stopPropagation(); deleteSong(${song.id})" title="Eliminar canción" class="text-slate-500 hover:text-red-400 text-xs p-1.5 transition">
+                            🗑️
+                        </button>
+                    </div>
+                `;
+                container.appendChild(card);
+            });
+        }
+
+        function filterSongs() {
+            const query = document.getElementById('search-input').value.toLowerCase();
+            const filtered = songs.filter(s => 
+                s.title.toLowerCase().includes(query) || 
+                s.artist.toLowerCase().includes(query) || 
+                (s.singer && s.singer.toLowerCase().includes(query))
+            );
+            renderLibrary(filtered);
+        }
+
+        function filterBySinger(singer, element) {
+            document.querySelectorAll('.singer-chip').forEach(btn => {
+                btn.className = "singer-chip px-3 py-1.5 rounded-full bg-slate-900 border border-slate-800 text-slate-300 hover:text-white whitespace-nowrap text-xs transition";
+            });
+            element.className = "singer-chip px-3 py-1.5 rounded-full bg-amber-500 text-slate-950 font-semibold whitespace-nowrap text-xs shadow-sm shadow-amber-500/30 transition";
+
+            if (singer === 'todos') {
+                renderLibrary(songs);
+            } else {
+                const filtered = songs.filter(s => s.singer && s.singer.toLowerCase() === singer.toLowerCase());
+                renderLibrary(filtered);
+            }
+        }
+
+        function quickAddToSetlist(songId) {
+            const target = songs.find(s => s.id === songId);
+            if (!target) return;
+            const activeSetlist = getActiveSetlist();
+            const item = {
+                ...target,
+                currentToneInSession: target.tone,
+                uniqueKey: Date.now() + Math.random()
+            };
+            activeSetlist.songs.push(item);
+            saveData();
+            showNotification(`"${target.title}" agregada a "${activeSetlist.name}"`);
+            syncUploadToCloud(true);
+        }
+
+        function openSongViewer(songIdOrObject, source = 'library', setlistIdx = -1) {
+            viewerSource = source;
+            currentSetlistIndex = setlistIdx;
+
+            if (typeof songIdOrObject === 'object') {
+                activeSong = songIdOrObject;
+            } else {
+                activeSong = songs.find(s => s.id === songIdOrObject);
+            }
+
+            if (!activeSong) return;
+
+            transposeSteps = 0;
+
+            document.getElementById('view-title').innerText = activeSong.title;
+            document.getElementById('view-artist').innerText = "Original: " + activeSong.artist;
+            document.getElementById('view-singer-badge').innerText = "🎤 " + (activeSong.singer || 'Sin cantante');
+            document.getElementById('view-rhythm-badge').innerText = activeSong.rhythm || '';
+            
+            const notesBox = document.getElementById('view-notes-box');
+            if (activeSong.notes && activeSong.notes.trim()) {
+                document.getElementById('view-notes-text').innerText = activeSong.notes;
+                notesBox.classList.remove('hidden');
+            } else {
+                notesBox.classList.add('hidden');
+            }
+
+           const baseTone = activeSong.currentToneInSession || activeSong.tone || 'C';
+const toneLabel = document.getElementById('current-tone-label');
+if (toneLabel) {
+    toneLabel.innerText = baseTone;
+}
+
+            const mgmtPanel = document.getElementById('library-management-panel');
+            const stageBadge = document.getElementById('stage-badge');
+            const stageNavBar = document.getElementById('stage-nav-bar');
+            const backBtnLabel = document.getElementById('viewer-back-label');
+
+            if (viewerSource === 'setlist') {
+                mgmtPanel.classList.add('hidden');
+                stageBadge.classList.remove('hidden');
+                stageNavBar.classList.remove('hidden');
+                document.getElementById('autoscroll-panel').classList.remove('hidden');
+                backBtnLabel.innerText = "← Volver a la Pauta";
+                updateStageNavButtons();
+                requestWakeLock();
+            } else {
+                mgmtPanel.classList.remove('hidden');
+                stageBadge.classList.add('hidden');
+                stageNavBar.classList.add('hidden');
+                document.getElementById('autoscroll-panel').classList.add('hidden');
+                backBtnLabel.innerText = "← Volver a Canciones";
+            }
+
+            startVisualMetronome(activeSong.bpm);
+            renderChordChart();
+            switchTab('viewer');
+            window.scrollTo({ top: 0, behavior: 'instant' });
+        }
+
+        function updateStageNavButtons() {
+            const activeSetlist = getActiveSetlist();
+            if (viewerSource !== 'setlist' || activeSetlist.songs.length === 0) return;
+
+            const prevBtn = document.getElementById('nav-prev-btn');
+            const nextBtn = document.getElementById('nav-next-btn');
+            const prevText = document.getElementById('nav-prev-text');
+            const nextText = document.getElementById('nav-next-text');
+            const counter = document.getElementById('nav-counter');
+
+            counter.innerText = `${currentSetlistIndex + 1} / ${activeSetlist.songs.length}`;
+
+            if (currentSetlistIndex > 0) {
+                prevBtn.disabled = false;
+                const prevSong = activeSetlist.songs[currentSetlistIndex - 1];
+                prevText.innerText = prevSong.title;
+            } else {
+                prevBtn.disabled = true;
+                prevText.innerText = "Inicio";
+            }
+
+            if (currentSetlistIndex < activeSetlist.songs.length - 1) {
+                nextBtn.disabled = false;
+                const nextSong = activeSetlist.songs[currentSetlistIndex + 1];
+                nextText.innerText = nextSong.title;
+            } else {
+                nextBtn.disabled = true;
+                nextText.innerText = "Fin";
+            }
+        }
+
+        function navigateSetlist(step) {
+            stopAutoScroll();
+            const activeSetlist = getActiveSetlist();
+            let newIndex = currentSetlistIndex + step;
+            if (newIndex >= 0 && newIndex < activeSetlist.songs.length) {
+                openSongViewer(activeSetlist.songs[newIndex], 'setlist', newIndex);
+            }
+        }
+
+        function startSetlistShow() {
+            const activeSetlist = getActiveSetlist();
+            if (activeSetlist.songs.length === 0) {
+                alert("La pauta de ensayo está vacía. Añade canciones desde la librería.");
+                return;
+            }
+            openSongViewer(activeSetlist.songs[0], 'setlist', 0);
+        }
+
+        function normalizeNote(note) {
+            let upper = note.toUpperCase();
+            return flatToSharpMap[upper] || upper;
+        }
+
+        function transposeSingleNote(root, steps) {
+            let normalized = normalizeNote(root);
+            let idx = chromaticScale.indexOf(normalized);
+            if (idx === -1) return root;
+            let newIdx = (idx + steps + 1200) % 12;
+            return chromaticScale[newIdx];
+        }
+
+        function transposeChord(chord, steps) {
+            if (steps === 0 || !chord) return chord;
+
+            if (chord.includes('/')) {
+                let [mainPart, bassPart] = chord.split('/');
+                return transposeChord(mainPart, steps) + '/' + transposeSingleNote(bassPart, steps);
+            }
+
+            let match = chord.match(/^([A-Ga-g][#b]?)(.*)$/);
+            if (!match) return chord;
+
+            let root = match[1];
+            let suffix = match[2];
+            return transposeSingleNote(root, steps) + suffix;
+        }
+
+        function transpose(steps) {
+            const currentScroll = window.scrollY; 
+            transposeSteps += steps;
+            let baseTone = activeSong.currentToneInSession || activeSong.tone || 'C';
+            let newTone = transposeChord(baseTone, transposeSteps);
+            document.getElementById('current-tone-label').innerText = newTone;
+            renderChordChart();
+            window.scrollTo({ top: currentScroll, behavior: 'instant' });
+        }
+
+        function resetTranspose() {
+            const currentScroll = window.scrollY;
+            transposeSteps = 0;
+            let baseTone = activeSong.currentToneInSession || activeSong.tone || 'C';
+            document.getElementById('current-tone-label').innerText = baseTone;
+            renderChordChart();
+            window.scrollTo({ top: currentScroll, behavior: 'instant' });
+        }
+
+        function getStepsBetween(oldTone, newTone) {
+            let i1 = chromaticScale.indexOf(normalizeNote(oldTone));
+            let i2 = chromaticScale.indexOf(normalizeNote(newTone));
+            if (i1 === -1 || i2 === -1) return 0;
+            return (i2 - i1 + 12) % 12;
+        }
+
+        function transposeLyricsText(lyricsText, oldTone, newTone) {
+            let steps = getStepsBetween(oldTone, newTone);
+            if (steps === 0) return lyricsText;
+            return lyricsText.replace(/\[(.*?)\]/g, (match, chord) => {
+                if (/^(intro|coro|verso|estrofa|puente|bridge|solo|final|outro|coda)/i.test(chord.trim())) {
+                    return match;
+                }
+                return '[' + transposeChord(chord, steps) + ']';
+            });
+        }
+
+        function renderChordChart() {
+            const container = document.getElementById('chord-chart-container');
+            container.innerHTML = "";
+
+            if (!activeSong || !activeSong.lyrics) {
+                container.innerHTML = `<p class="text-slate-500 text-center py-6">Sin letra cargada. Pulsa "✏️ Letra" para agregarla.</p>`;
+                return;
+            }
+
+            const rawLines = activeSong.lyrics.split('\n');
+
+            rawLines.forEach(line => {
+                let trimmed = line.trim();
+
+                if (!trimmed) {
+                    const emptyDiv = document.createElement('div');
+                    emptyDiv.className = "h-2.5";
+                    container.appendChild(emptyDiv);
+                    return;
+                }
+
+                let sectionMatch = trimmed.match(/^\[(Intro|Coro|Verso|Estrofa|Puente|Bridge|Solo|Final|Outro|Pre-coro|Coda)(.*?)\]$/i);
+                if (sectionMatch) {
+                    const secDiv = document.createElement('div');
+                    secDiv.className = "section-badge";
+                    secDiv.innerText = trimmed.replace(/^\[|\]$/g, '');
+                    container.appendChild(secDiv);
+                    return;
+                }
+
+                const lineDiv = document.createElement('div');
+                lineDiv.className = "flex flex-wrap items-end mb-1 leading-none";
+
+                let parts = line.split(/\[(.*?)\]/);
+                if (parts.length === 1) {
+                    lineDiv.innerHTML = `<span class="lyric-text">${escapeHtml(line)}</span>`;
+                    container.appendChild(lineDiv);
+                    return;
+                }
+
+                let currentChord = "";
+                for (let i = 0; i < parts.length; i++) {
+                    if (i % 2 === 1) {
+                        currentChord = transposeChord(parts[i], transposeSteps);
+                    } else {
+                        let lyricPiece = parts[i];
+                        if (currentChord || lyricPiece) {
+                            const chunk = document.createElement('div');
+                            chunk.className = "chord-block";
+                            
+                            const chordSpan = document.createElement('span');
+                            chordSpan.className = "chord-text";
+                            chordSpan.innerText = currentChord || '\u00A0';
+
+                            const lyricSpan = document.createElement('span');
+                            lyricSpan.className = "lyric-text";
+                            lyricSpan.innerText = lyricPiece || '\u00A0';
+
+                            chunk.appendChild(chordSpan);
+                            chunk.appendChild(lyricSpan);
+                            lineDiv.appendChild(chunk);
+
+                            currentChord = "";
+                        }
+                    }
+                }
+
+                if (currentChord) {
+                    const chunk = document.createElement('div');
+                    chunk.className = "chord-block";
+                    chunk.innerHTML = `<span class="chord-text">${escapeHtml(currentChord)}</span><span class="lyric-text">\u00A0</span>`;
+                    lineDiv.appendChild(chunk);
+                }
+
+                container.appendChild(lineDiv);
+            });
+        }
+
+        function escapeHtml(text) {
+            return text
+                .replace(/&/g, "&amp;")
+                .replace(/</g, "&lt;")
+                .replace(/>/g, "&gt;");
+        }
+
+        function toggleAutoScroll() {
+            if (autoScrollInterval) {
+                stopAutoScroll();
+            } else {
+                startAutoScroll();
+            }
+        }
+
+        function startAutoScroll() {
+            const btn = document.getElementById('autoscroll-btn');
+            const icon = document.getElementById('autoscroll-icon');
+            const text = document.getElementById('autoscroll-text');
+
+            btn.className = "bg-red-500 hover:bg-red-400 text-white px-3 py-1.5 rounded-lg text-xs font-black transition active:scale-95 flex items-center gap-1 shadow-md shadow-red-500/30";
+            icon.innerText = "⏸";
+            text.innerText = "Pausar";
+
+            let step = autoScrollSpeed; 
+            autoScrollInterval = setInterval(() => {
+                window.scrollBy({ top: step, behavior: 'smooth' });
+                if ((window.innerHeight + window.scrollY) >= document.body.offsetHeight - 5) {
+                    stopAutoScroll();
+                }
+            }, 50);
+        }
+
+        function stopAutoScroll() {
+            if (autoScrollInterval) {
+                clearInterval(autoScrollInterval);
+                autoScrollInterval = null;
+            }
+            const btn = document.getElementById('autoscroll-btn');
+            const icon = document.getElementById('autoscroll-icon');
+            const text = document.getElementById('autoscroll-text');
+            if (btn) {
+                btn.className = "bg-amber-500 hover:bg-amber-400 text-slate-950 px-3 py-1.5 rounded-lg text-xs font-black transition active:scale-95 flex items-center gap-1";
+                icon.innerText = "▶";
+                text.innerText = "Scroll";
+            }
+        }
+
+        function adjustScrollSpeed(delta) {
+            const speeds = [0.5, 1, 2, 3, 4, 5, 6];
+            let currentIndex = speeds.indexOf(autoScrollSpeed);
+            if (currentIndex === -1) currentIndex = 2;
+            
+            let newIndex = currentIndex + delta;
+            newIndex = Math.max(0, Math.min(speeds.length - 1, newIndex));
+            
+            autoScrollSpeed = speeds[newIndex];
+            document.getElementById('autoscroll-speed-label').innerText = `Vel: ${autoScrollSpeed}`;
+            
+            if (autoScrollInterval) {
+                stopAutoScroll();
+                startAutoScroll();
+            }
+        }
+
+        function changeFontSize(delta) {
+            currentFontScale = Math.max(70, Math.min(180, currentFontScale + (delta * 10)));
+            document.getElementById('font-size-label').innerText = `${currentFontScale}%`;
+            document.getElementById('chord-chart-container').style.fontSize = `${currentFontScale}%`;
+        }
+
+        function toggleFullScreen() {
+            if (!document.fullscreenElement) {
+                document.documentElement.requestFullscreen().catch(() => {});
+            } else {
+                if (document.exitFullscreen) {
+                    document.exitFullscreen();
+                }
+            }
+        }
+
+        async function requestWakeLock() {
+            try {
+                if ('wakeLock' in navigator) {
+                    wakeLockSentinel = await navigator.wakeLock.request('screen');
+                }
+            } catch (err) {}
+        }
+
+        function renderSetlistSelector() {
+            const select = document.getElementById('setlist-select');
+            select.innerHTML = "";
+            setlists.forEach(s => {
+                const opt = document.createElement('option');
+                opt.value = s.id;
+                opt.innerText = `${s.name} (${s.songs.length} temas)`;
+                if (s.id === activeSetlistId) opt.selected = true;
+                select.appendChild(opt);
+            });
+        }
+
+        function switchActiveSetlist(newId) {
+            activeSetlistId = newId;
+            saveData();
+            renderSetlistSelector();
+            renderSetlist();
+            showNotification(`Pauta cambiada a "${getActiveSetlist().name}"`);
+        }
+
+        function createNewSetlist() {
+            const name = prompt("Nombre de la nueva pauta de ensayo:", `Pauta Ensayo ${setlists.length + 1}`);
+            if (!name || !name.trim()) return;
+            const newSetlist = {
+                id: "setlist_" + Date.now(),
+                name: name.trim(),
+                date: new Date().toISOString().slice(0, 10),
+                songs: []
+            };
+            setlists.push(newSetlist);
+            activeSetlistId = newSetlist.id;
+            saveData();
+            renderSetlistSelector();
+            renderSetlist();
+            showNotification(`¡Pauta "${newSetlist.name}" creada!`);
+            syncUploadToCloud(true);
+        }
+
+        function renameCurrentSetlist() {
+            const active = getActiveSetlist();
+            const newName = prompt(`Nuevo nombre para "${active.name}":`, active.name);
+            if (!newName || !newName.trim()) return;
+            active.name = newName.trim();
+            saveData();
+            renderSetlistSelector();
+            renderSetlist();
+            showNotification("Pauta renombrada con éxito.");
+            syncUploadToCloud(true);
+        }
+
+        function duplicateCurrentSetlist() {
+            const active = getActiveSetlist();
+            const copy = {
+                id: "setlist_" + Date.now(),
+                name: active.name + " (Copia)",
+                date: new Date().toISOString().slice(0, 10),
+                songs: JSON.parse(JSON.stringify(active.songs))
+            };
+            setlists.push(copy);
+            activeSetlistId = copy.id;
+            saveData();
+            renderSetlistSelector();
+            renderSetlist();
+            showNotification(`¡Pauta duplicada como "${copy.name}"!`);
+            syncUploadToCloud(true);
+        }
+
+        function deleteCurrentSetlist() {
+            const active = getActiveSetlist();
+            if (setlists.length <= 1) {
+                if (confirm(`¿Vaciar todas las canciones de "${active.name}"?`)) {
+                    active.songs = [];
+                    saveData();
+                    renderSetlist();
+                    syncUploadToCloud(true);
+                }
+                return;
+            }
+            if (confirm(`¿Estás seguro de eliminar por completo la pauta "${active.name}"?`)) {
+                setlists = setlists.filter(s => s.id !== active.id);
+                activeSetlistId = setlists[0].id;
+                saveData();
+                renderSetlistSelector();
+                renderSetlist();
+                showNotification("Pauta eliminada.");
+                syncUploadToCloud(true);
+            }
+        }
+
+        function addToCurrentSetlist() {
+            if (!activeSong) return;
+            const activeSetlist = getActiveSetlist();
+            const liveTone = document.getElementById('current-tone-label').innerText;
+            const songVersion = {
+                ...activeSong,
+                currentToneInSession: liveTone,
+                uniqueKey: Date.now() + Math.random()
+            };
+            activeSetlist.songs.push(songVersion);
+            saveData();
+            showNotification(`¡${activeSong.title} añadida a "${activeSetlist.name}"!`);
+            syncUploadToCloud(true);
+        }
+
+        function renderSetlist() {
+            const container = document.getElementById('setlist-container');
+            container.innerHTML = "";
+            const activeSetlist = getActiveSetlist();
+
+            if (activeSetlist.songs.length === 0) {
+                container.innerHTML = `<div class="text-center text-xs text-slate-500 py-10 bg-slate-900/50 border border-dashed border-slate-800 rounded-2xl">La pauta "${activeSetlist.name}" no tiene canciones aún. Ve a Canciones y pulsa ➕ para añadir.</div>`;
+                return;
+            }
+
+            activeSetlist.songs.forEach((song, index) => {
+                const card = document.createElement('div');
+                card.className = "bg-slate-900 border border-slate-800 p-3 rounded-xl flex justify-between items-center hover:border-slate-700 transition";
+                card.innerHTML = `
+                    <div class="flex items-center gap-2.5 min-w-0 pr-2">
+                        <span class="w-6 text-center text-xs font-black text-amber-500 font-mono shrink-0">#${index + 1}</span>
+                        <div class="min-w-0 truncate">
+                            <h4 class="font-bold text-white text-sm hover:text-amber-400 cursor-pointer truncate" onclick="openSongViewer(getActiveSetlist().songs[${index}], 'setlist', ${index})">${song.title}</h4>
+                            <p class="text-xs text-slate-400 truncate">
+                                Cantante: <span class="text-amber-400 font-semibold">${song.singer || 'Banda'}</span> • Tono: <strong class="text-amber-300 font-mono">${song.currentToneInSession || song.tone}</strong>
+                            </p>
+                        </div>
+                    </div>
+                    <div class="flex items-center gap-1.5 shrink-0">
+                        <button onclick="moveSetlistItem(${index}, -1)" ${index === 0 ? 'disabled' : ''} title="Subir orden" class="bg-slate-800 hover:bg-slate-700 disabled:opacity-20 text-slate-300 px-2 py-1.5 rounded text-xs">▲</button>
+                        <button onclick="moveSetlistItem(${index}, 1)" ${index === activeSetlist.songs.length - 1 ? 'disabled' : ''} title="Bajar orden" class="bg-slate-800 hover:bg-slate-700 disabled:opacity-20 text-slate-300 px-2 py-1.5 rounded text-xs">▼</button>
+                        <button onclick="openSongViewer(getActiveSetlist().songs[${index}], 'setlist', ${index})" class="bg-amber-500 hover:bg-amber-400 text-slate-950 font-bold px-2.5 py-1.5 text-xs rounded-lg transition ml-1">
+                            Tocar
+                        </button>
+                        <button onclick="removeFromSetlist(${index})" title="Quitar de la lista" class="text-slate-500 hover:text-red-400 text-xs p-1.5">✕</button>
+                    </div>
+                `;
+                container.appendChild(card);
+            });
+        }
+
+        function moveSetlistItem(index, direction) {
+            const activeSetlist = getActiveSetlist();
+            let targetIdx = index + direction;
+            if (targetIdx < 0 || targetIdx >= activeSetlist.songs.length) return;
+            const temp = activeSetlist.songs[index];
+            activeSetlist.songs[index] = activeSetlist.songs[targetIdx];
+            activeSetlist.songs[targetIdx] = temp;
+            saveData();
+            renderSetlist();
+            syncUploadToCloud(true);
+        }
+
+        function removeFromSetlist(index) {
+            const activeSetlist = getActiveSetlist();
+            activeSetlist.songs.splice(index, 1);
+            saveData();
+            renderSetlistSelector();
+            renderSetlist();
+            syncUploadToCloud(true);
+        }
+
+        async function publishAndNotifySetlist() {
+            const active = getActiveSetlist();
+            if (active.songs.length === 0) {
+                alert("La pauta de ensayo está vacía. Añade canciones antes de notificar.");
+                return;
+            }
+
+            if (!confirm(`¿Notificar a la aplicación de todos los integrantes que la pauta "${active.name}" (${active.songs.length} canciones) ya está lista?`)) {
+                return;
+            }
+
+            const notifId = Date.now();
+            latestNotificationData = {
+                id: notifId,
+                setlistId: active.id,
+                setlistName: active.name,
+                songCount: active.songs.length,
+                timestamp: notifId,
+                publishedAt: new Date().toISOString()
+            };
+
+            localStorage.setItem('group_last_notification', JSON.stringify(latestNotificationData));
+            localStorage.setItem('last_seen_notification_id', String(notifId)); 
+
+            await syncUploadToCloud(true);
+            showNotification("📢 ¡Notificación enviada a la aplicación de todos los integrantes!");
+        }
+
+        function checkNewSetlistNotification(notif) {
+            if (!notif || !notif.id) return;
+            const lastSeen = localStorage.getItem('last_seen_notification_id');
+            
+            if (String(notif.id) !== String(lastSeen)) {
+                latestNotificationData = notif;
+                
+                const banner = document.getElementById('new-setlist-alert');
+                const bannerText = document.getElementById('new-setlist-alert-text');
+                if (banner && bannerText) {
+                    bannerText.innerText = `"${notif.setlistName}" (${notif.songCount} canciones lista para ensayar)`;
+                    banner.classList.remove('hidden');
+                }
+
+                triggerSystemNotification(notif);
+            }
+        }
+
+        function triggerSystemNotification(notif) {
+            const title = "🎸 ¡Pauta de Ensayo Lista!";
+            const body = `Se publicó "${notif.setlistName}" con ${notif.songCount} canciones.`;
+
+            if ('Notification' in window && Notification.permission === 'granted') {
+                if (navigator.serviceWorker && navigator.serviceWorker.controller) {
+                    navigator.serviceWorker.controller.postMessage({
+                        type: 'SHOW_NOTIFICATION',
+                        title: title,
+                        body: body
+                    });
+                } else {
+                    try {
+                        new Notification(title, { body: body, icon: 'logo.jpg', badge: 'logo.jpg' });
+                    } catch (e) {}
+                }
+            }
+        }
+
+        function dismissAndOpenNotificationSetlist() {
+            if (latestNotificationData) {
+                localStorage.setItem('last_seen_notification_id', String(latestNotificationData.id));
+                if (latestNotificationData.setlistId) {
+                    switchActiveSetlist(latestNotificationData.setlistId);
+                }
+            }
+            const banner = document.getElementById('new-setlist-alert');
+            if (banner) banner.classList.add('hidden');
+            switchTab('setlist');
+        }
+
+        function requestNotificationPermission() {
+            if ('Notification' in window) {
+                Notification.requestPermission().then(permission => {
+                    const banner = document.getElementById('enable-notifications-banner');
+                    if (banner) banner.classList.add('hidden');
+                    if (permission === 'granted') {
+                        showNotification("🔔 ¡Notificaciones activadas!");
+                    }
+                });
+            }
+        }
+
+        function checkNotificationPermissionBanner() {
+            if ('Notification' in window && Notification.permission === 'default') {
+                const banner = document.getElementById('enable-notifications-banner');
+                if (banner) banner.classList.remove('hidden');
+            }
+        }
+
+        function generateSetlistShareText() {
+            const active = getActiveSetlist();
+            if (!active.songs.length) {
+                return `🎸 PAUTA: ${active.name}\n(Sin canciones asignadas aún)`;
+            }
+
+            let text = `🎸 *PAUTA DE ENSAYO: ${active.name.toUpperCase()}* 🎸\n`;
+            text += `📅 Fecha: ${new Date().toLocaleDateString('es-ES')}\n`;
+            text += `🎵 Total: ${active.songs.length} canciones confirmadas:\n\n`;
+
+            active.songs.forEach((song, i) => {
+                text += `${i + 1}. *${song.title}* — Cantante: ${song.singer || 'Banda'} (Tono: *${song.currentToneInSession || song.tone}*)\n`;
+            });
+
+            text += `\n🤘 ¡A estudiar y repasar los tonos, nos vemos en el ensayo! 🎶\n`;
+            text += `📱 Entra a la app aquí: https://dobleaa.netlify.app/`;
+            return text;
+        }
+
+        function notifyGroupWhatsApp() {
+            const active = getActiveSetlist();
+            if (active.songs.length === 0) {
+                alert("La pauta de ensayo está vacía. Añade canciones antes de notificar.");
+                return;
+            }
+
+            const message = generateSetlistShareText();
+            const whatsappUrl = `https://api.whatsapp.com/send?text=${encodeURIComponent(message)}`;
+            window.open(whatsappUrl, '_blank');
+            showNotification("Abriendo WhatsApp con la pauta lista...");
+        }
+
+        async function shareSetlistNative() {
+            const message = generateSetlistShareText();
+            if (navigator.share) {
+                try {
+                    await navigator.share({ title: `Pauta de Ensayo - ${getActiveSetlist().name}`, text: message });
+                    return;
+                } catch (e) {}
+            }
+
+            navigator.clipboard.writeText(message).then(() => {
+                showNotification("📋 ¡Pauta copiada al portapapeles! Lista para pegar en el grupo.");
+            }).catch(() => {
+                alert(message);
+            });
+        }
+
+        function saveSongEdits() {
+            if (!activeSong) return;
+            const savedWindowScroll = window.scrollY;
+            const newTone = document.getElementById('current-tone-label').innerText;
+
+            if (activeSong.tone !== newTone) {
+                activeSong.lyrics = transposeLyricsText(activeSong.lyrics, activeSong.tone, newTone);
+            }
+
+            activeSong.tone = newTone;
+            transposeSteps = 0;
+
+            saveData();
+            renderChordChart();
+            window.scrollTo({ top: savedWindowScroll, behavior: 'instant' });
+
+            showNotification("💾 ¡Acordes fijados en el nuevo tono base!");
+            syncUploadToCloud(true);
+        }
+
+        function duplicateForAnotherSinger() {
+            if (!activeSong) return;
+            const otherSinger = prompt("¿Qué vocalista cantará esta nueva versión?", "Nuevo Vocalista");
+            if (!otherSinger) return;
+            const newTone = prompt("¿En qué tono la cantará?", activeSong.tone);
+            if (!newTone) return;
+
+            let finalNewTone = newTone.toUpperCase();
+            let clonedLyrics = transposeLyricsText(activeSong.lyrics, activeSong.tone, finalNewTone);
+
+            const clonedSong = {
+                id: Date.now(),
+                title: activeSong.title,
+                artist: activeSong.artist,
+                singer: otherSinger,
+                tone: finalNewTone,
+                rhythm: activeSong.rhythm,
+                bpm: activeSong.bpm || '',
+                notes: activeSong.notes || '',
+                lyrics: clonedLyrics
+            };
+
+            songs.push(clonedSong);
+            saveData();
+            renderSingerChips();
+            showNotification(`¡Versión para ${otherSinger} creada con éxito!`);
+            openSongViewer(clonedSong.id, 'library');
+            syncUploadToCloud(true);
+        }
+
+        function deleteSong(id) {
+            if (confirm("¿Estás seguro de eliminar esta canción de la librería?")) {
+                songs = songs.filter(s => s.id !== id);
+                saveData();
+                renderSingerChips();
+                renderLibrary(songs);
+                syncUploadToCloud(true);
+            }
+        }
+
+        function saveNewSong(e) {
+            e.preventDefault();
+            const newSong = {
+                id: Date.now(),
+                title: document.getElementById('new-title').value.trim(),
+                artist: document.getElementById('new-artist').value.trim(),
+                singer: document.getElementById('new-singer').value.trim(),
+                tone: document.getElementById('new-tone').value,
+                rhythm: document.getElementById('new-rhythm').value.trim(),
+                bpm: document.getElementById('new-bpm').value.trim(),
+                notes: document.getElementById('new-notes').value.trim(),
+                lyrics: document.getElementById('new-lyrics').value
+            };
+            songs.push(newSong);
+            saveData();
+            showNotification("¡Canción agregada a la librería!");
+            document.getElementById('add-song-form').reset();
+            switchTab('library');
+            syncUploadToCloud(true);
+        }
+
+        function handleTxtUpload(event) {
+            const file = event.target.files[0];
+            if (!file) return;
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                let content = e.target.result;
+                if (!/\[[A-G].*?\]/.test(content)) {
+                    content = convertTabsToBracketedChords(content);
+                }
+                document.getElementById('new-lyrics').value = content;
+                let cleanName = file.name.replace(/\.[^/.]+$/, "");
+                document.getElementById('new-title').value = cleanName;
+            };
+            reader.readAsText(file);
+        }
+
+        function toggleBackupMenu() {
+            document.getElementById('backup-menu').classList.toggle('hidden');
+        }
+
+        function exportRepertoire() {
+            const backupData = {
+                version: "2.3",
+                exportedAt: new Date().toISOString(),
+                songs: songs,
+                setlists: setlists,
+                activeSetlistId: activeSetlistId
+            };
+            const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(backupData, null, 2));
+            const downloadAnchor = document.createElement('a');
+            downloadAnchor.setAttribute("href", dataStr);
+            downloadAnchor.setAttribute("download", `ensayos_backup_${new Date().toISOString().slice(0,10)}.json`);
+            document.body.appendChild(downloadAnchor);
+            downloadAnchor.click();
+            downloadAnchor.remove();
+        }
+
+        function importRepertoire(event) {
+            const file = event.target.files[0];
+            if (!file) return;
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                try {
+                    const parsed = JSON.parse(e.target.result);
+                    if (Array.isArray(parsed.songs)) {
+                        songs = parsed.songs;
+                        if (Array.isArray(parsed.setlists)) {
+                            setlists = parsed.setlists;
+                            activeSetlistId = parsed.activeSetlistId || setlists[0].id;
+                        }
+                        saveData();
+                        renderSingerChips();
+                        renderLibrary(songs);
+                        renderSetlistSelector();
+                        renderSetlist();
+                        syncUploadToCloud(true);
+                        alert("¡Repertorio y pautas restaurados con éxito!");
+                        toggleBackupMenu();
+                    } else {
+                        alert("Formato de archivo no válido.");
+                    }
+                } catch (err) {
+                    alert("Error al leer el archivo JSON.");
+                }
+            };
+            reader.readAsText(file);
+        }
+
+        function openQuickLyricsEditor() {
+            if (!activeSong) return;
+            document.getElementById('quick-lyrics-song-title').innerText = `Editando: ${activeSong.title}`;
+
+            document.getElementById('quick-edit-title').value = activeSong.title || '';
+            document.getElementById('quick-edit-artist').value = activeSong.artist || '';
+            document.getElementById('quick-edit-singer').value = activeSong.singer || '';
+            document.getElementById('quick-edit-tone').value = activeSong.tone || 'C';
+            document.getElementById('quick-edit-rhythm').value = activeSong.rhythm || '';
+            document.getElementById('quick-edit-bpm').value = activeSong.bpm || '';
+            document.getElementById('quick-edit-notes').value = activeSong.notes || '';
+            document.getElementById('quick-lyrics-textarea').value = activeSong.lyrics || '';
+
+            const toneSelect = document.getElementById('quick-modal-tone-select');
+            let base = activeSong.currentToneInSession || activeSong.tone || 'C';
+            toneSelect.value = base;
+            renderHarmonicCircleChips(base, 'quick-lyrics-harmonic-chips', 'quick-lyrics-textarea');
+
+            document.getElementById('quick-lyrics-modal').classList.remove('hidden');
+        }
+
+        function closeQuickLyricsModal() {
+            document.getElementById('quick-lyrics-modal').classList.add('hidden');
+        }
+
+        function insertChordAtCursor(tag, targetTextareaId = 'quick-lyrics-textarea') {
+            const textarea = document.getElementById(targetTextareaId);
+            if (!textarea) return;
+
+            const start = textarea.selectionStart;
+            const end = textarea.selectionEnd;
+            const text = textarea.value;
+            const prevScrollTop = textarea.scrollTop; 
+
+            textarea.value = text.substring(0, start) + tag + text.substring(end);
+            textarea.focus();
+            textarea.selectionStart = textarea.selectionEnd = start + tag.length;
+            textarea.scrollTop = prevScrollTop; 
+        }
+
+        function saveQuickLyrics() {
+            if (!activeSong) return;
+            const savedWindowScroll = window.scrollY; 
+
+            const newTitle = document.getElementById('quick-edit-title').value.trim();
+            const newArtist = document.getElementById('quick-edit-artist').value.trim();
+            const newSinger = document.getElementById('quick-edit-singer').value.trim();
+            const newTone = document.getElementById('quick-edit-tone').value;
+            const newRhythm = document.getElementById('quick-edit-rhythm').value.trim();
+            const newBpm = document.getElementById('quick-edit-bpm').value.trim();
+            const newNotes = document.getElementById('quick-edit-notes').value.trim();
+            const updatedLyrics = document.getElementById('quick-lyrics-textarea').value;
+
+            activeSong.title = newTitle;
+            activeSong.artist = newArtist;
+            activeSong.singer = newSinger;
+            activeSong.tone = newTone;
+            activeSong.rhythm = newRhythm;
+            activeSong.bpm = newBpm;
+            activeSong.notes = newNotes;
+            activeSong.lyrics = updatedLyrics;
+
+            const inCatalog = songs.find(s => s.id === activeSong.id);
+            if (inCatalog) {
+                Object.assign(inCatalog, {title: newTitle, artist: newArtist, singer: newSinger, tone: newTone, rhythm: newRhythm, bpm: newBpm, notes: newNotes, lyrics: updatedLyrics});
+            }
+
+            const activeSetlist = getActiveSetlist();
+            const inSetlist = activeSetlist.songs.find(s => s.id === activeSong.id || s.uniqueKey === activeSong.uniqueKey);
+            if (inSetlist) {
+                Object.assign(inSetlist, {title: newTitle, artist: newArtist, singer: newSinger, tone: newTone, rhythm: newRhythm, bpm: newBpm, notes: newNotes, lyrics: updatedLyrics});
+            }
+
+            document.getElementById('view-title').innerText = activeSong.title;
+            document.getElementById('view-artist').innerText = "Original: " + activeSong.artist;
+            document.getElementById('view-singer-badge').innerText = "🎤 " + (activeSong.singer || 'Sin cantante');
+            document.getElementById('view-rhythm-badge').innerText = activeSong.rhythm || '';
+            document.getElementById('current-tone-label').innerText = activeSong.tone;
+
+            const notesBox = document.getElementById('view-notes-box');
+            if (activeSong.notes) {
+                document.getElementById('view-notes-text').innerText = activeSong.notes;
+                notesBox.classList.remove('hidden');
+            } else {
+                notesBox.classList.add('hidden');
+            }
+
+            transposeSteps = 0; 
+            startVisualMetronome(activeSong.bpm);
+
+            saveData();
+            renderSingerChips();
+            renderLibrary(songs);
+            renderSetlist();
+            renderChordChart();
+            closeQuickLyricsModal();
+
+            window.scrollTo({ top: savedWindowScroll, behavior: 'instant' });
+
+            showNotification("💾 ¡Canción editada por completo!");
+            syncUploadToCloud(true);
+        }
+
+        function showNotification(msg) {
+            const existing = document.getElementById('app-notification');
+            if (existing) existing.remove();
+
+            const toast = document.createElement('div');
+            toast.id = 'app-notification';
+            toast.className = "fixed bottom-5 left-1/2 -translate-x-1/2 bg-amber-500 text-slate-950 font-bold px-4 py-2 rounded-xl text-xs shadow-2xl z-50 flex items-center gap-2 animate-bounce";
+            toast.innerText = msg;
+            document.body.appendChild(toast);
+            setTimeout(() => toast.remove(), 2800);
+        }
+
+        window.addEventListener('keydown', (e) => {
+            if (viewerSource !== 'setlist' || document.getElementById('view-viewer').classList.contains('hidden')) {
+                return;
+            }
+            if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') return;
+
+            if (e.key === 'ArrowRight' || e.key === 'PageDown') {
+                e.preventDefault();
+                navigateSetlist(1);
+            } else if (e.key === 'ArrowLeft' || e.key === 'PageUp') {
+                e.preventDefault();
+                navigateSetlist(-1);
+            } else if (e.code === 'Space') {
+                e.preventDefault();
+                toggleAutoScroll();
+            }
+        });
+
+        renderSetlistSelector();
+        updateNewSongHarmonicCircle('G');
+        saveData();
+        checkNotificationPermissionBanner();
+        switchTab('setlist');
+
+        window.addEventListener('popstate', (event) => {
+            document.getElementById('quick-lyrics-modal').classList.add('hidden');
+            if (event.state && event.state.tab) {
+                switchTab(event.state.tab, true);
+            } else {
+                switchTab('setlist', true);
+            }
+        });
+
+        window.history.replaceState({ tab: 'setlist' }, "", "#setlist");
+        switchTab('setlist', true);
+
+        let deferredPrompt;
+        const installBtn = document.getElementById('btn-install');
+
+        window.addEventListener('beforeinstallprompt', (e) => {
+            e.preventDefault(); 
+            deferredPrompt = e; 
+            if (!window.matchMedia('(display-mode: standalone)').matches && !navigator.standalone) {
+                installBtn.classList.remove('hidden');
+            }
+        });
+
+        installBtn.addEventListener('click', async () => {
+            if (deferredPrompt) {
+                deferredPrompt.prompt(); 
+                const { outcome } = await deferredPrompt.userChoice;
+                if (outcome === 'accepted') {
+                    installBtn.classList.add('hidden'); 
+                }
+                deferredPrompt = null;
+            }
+        });
+
+        window.addEventListener('appinstalled', () => {
+            installBtn.classList.add('hidden');
+            deferredPrompt = null;
+            showNotification("📱 ¡Doble A se instaló en tu teléfono!");
+        });
+
+        if (window.matchMedia('(display-mode: standalone)').matches || navigator.standalone) {
+            installBtn.classList.add('hidden');
+        }
+
+        if ('serviceWorker' in navigator) {
+            window.addEventListener('load', () => {
+                navigator.serviceWorker.register('./sw.js').catch(() => {});
+            });
+        }
+
+        let touchStartX = 0;
+        let touchStartY = 0;
+        let touchEndX = 0;
+        let touchEndY = 0;
+
+        const viewerElement = document.getElementById('view-viewer');
+        if (viewerElement) {
+            viewerElement.addEventListener('touchstart', (e) => {
+                touchStartX = e.changedTouches[0].screenX;
+                touchStartY = e.changedTouches[0].screenY;
+            }, { passive: true });
+
+            viewerElement.addEventListener('touchend', (e) => {
+                touchEndX = e.changedTouches[0].screenX;
+                touchEndY = e.changedTouches[0].screenY;
+                handleSwipeGesture();
+            }, { passive: true });
+        }
+
+        function handleSwipeGesture() {
+            if (viewerSource !== 'setlist') return;
+
+            const diffX = touchStartX - touchEndX;
+            const diffY = touchStartY - touchEndY;
+
+            const minSwipeDistance = 70; 
+            const maxVerticalDrift = 50;  
+
+            if (Math.abs(diffX) > minSwipeDistance && Math.abs(diffY) < maxVerticalDrift) {
+                if (diffX > 0) {
+                    navigateSetlist(1);
+                } else {
+                    navigateSetlist(-1);
+                }
+            }
+        }
+
+        let metronomeTimer = null;
+
+        function startVisualMetronome(bpm) {
+            stopVisualMetronome();
+            const container = document.getElementById('visual-metronome');
+            const dot = document.getElementById('metronome-dot');
+            const bpmVal = document.getElementById('metronome-bpm-val');
+
+            if (!bpm || isNaN(bpm) || bpm <= 0) {
+                if (container) container.classList.add('hidden');
+                return;
+            }
+
+            bpmVal.innerText = bpm;
+            container.classList.remove('hidden');
+
+            const intervalMs = (60 / parseInt(bpm)) * 1000;
+
+            metronomeTimer = setInterval(() => {
+                if (!dot) return;
+                dot.className = "w-3 h-3 rounded-full bg-amber-400 scale-125 shadow-lg shadow-amber-400 transition-all duration-75";
+                setTimeout(() => {
+                    if (dot) dot.className = "w-3 h-3 rounded-full bg-slate-600 transition-all duration-150";
+                }, 120);
+            }, intervalMs);
+        }
+
+        function stopVisualMetronome() {
+            if (metronomeTimer) {
+                clearInterval(metronomeTimer);
+                metronomeTimer = null;
+            }
+            const container = document.getElementById('visual-metronome');
+            if (container) container.classList.add('hidden');
+        }
+    </script>
+</body>
+</html>

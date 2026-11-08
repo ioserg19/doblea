@@ -52,26 +52,22 @@
         .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
     </style>
 </head>
-<body class="bg-slate-950 text-slate-100 min-h-screen flex flex-col selection:bg-amber-500 selection:text-slate-900">
+<body class="bg-slate-950 text-slate-100 min-h-screen flex flex-col selection:bg-amber-500 selection:text-slate-900 pb-20">
 
+    <!-- Header superior limpio y compacto -->
     <header id="main-header" class="bg-slate-900 border-b border-slate-800 sticky top-0 z-40 px-3.5 py-2.5 shadow-md flex justify-between items-center transition-all duration-200">
         <h1 class="text-base md:text-xl font-bold text-amber-400 flex items-center gap-2 cursor-pointer" onclick="switchTab('library')">
             <img src="logo.jpg" alt="Logo" class="w-7 h-7 md:w-8 md:h-8 rounded-full object-cover border border-amber-500/60 shadow shadow-amber-500/30">
             <span class="tracking-tight">Doble A</span>
         </h1>
-        <div class="flex items-center gap-1.5 md:gap-2">
-            <button id="btn-install" class="hidden px-2.5 py-1.5 rounded-lg text-xs md:text-sm font-bold bg-emerald-500 text-slate-950 hover:bg-emerald-400 transition shadow-md shadow-emerald-500/20 active:scale-95">
+        <div class="flex items-center gap-2">
+            <button id="btn-install" class="hidden px-2.5 py-1.5 rounded-lg text-xs font-bold bg-emerald-500 text-slate-950 hover:bg-emerald-400 transition shadow-md shadow-emerald-500/20 active:scale-95">
                 📱 Instalar
             </button>
             <button onclick="manualCloudSync()" title="Sincronizado automáticamente para la banda" class="px-2.5 py-1.5 rounded-lg text-xs bg-slate-800 hover:bg-slate-700 text-slate-300 flex items-center gap-1.5 transition">
                 <span id="cloud-indicator-dot" class="w-2 h-2 rounded-full bg-emerald-400 shadow-sm shadow-emerald-400"></span>
                 <span class="text-[11px] font-semibold text-slate-300" id="cloud-indicator-text">Online</span>
             </button>
-            <button onclick="switchTab('library')" id="btn-library" class="px-2.5 md:px-3 py-1.5 rounded-lg text-xs md:text-sm font-semibold bg-amber-500 text-slate-950 transition">Canciones</button>
-            <button onclick="switchTab('setlist')" id="btn-setlist" class="px-2.5 md:px-3 py-1.5 rounded-lg text-xs md:text-sm font-semibold bg-slate-800 text-slate-300 hover:text-white transition">
-                Setlist (<span id="setlist-count">0</span>)
-            </button>
-            <button onclick="switchTab('add')" id="btn-add" class="px-2.5 md:px-3 py-1.5 rounded-lg text-xs md:text-sm font-semibold bg-slate-800 text-slate-300 hover:text-white transition">➕ Nueva</button>
         </div>
     </header>
 
@@ -86,6 +82,11 @@
                 </div>
             </div>
             <button onclick="dismissAndOpenNotificationSetlist()" class="bg-slate-950 text-amber-400 hover:text-white px-3 py-1.5 rounded-xl text-xs font-bold transition shrink-0 shadow">Ver Pauta</button>
+        </div>
+
+        <div id="enable-notifications-banner" class="hidden bg-slate-900 border border-amber-500/30 p-2.5 rounded-xl flex items-center justify-between gap-2 mb-3 text-xs">
+            <span class="text-slate-300">🔔 ¿Activar avisos en tu teléfono al publicarse la pauta?</span>
+            <button onclick="requestNotificationPermission()" class="bg-amber-500 hover:bg-amber-400 text-slate-950 font-bold px-3 py-1 rounded-lg transition shrink-0">Activar</button>
         </div>
 
         <section id="view-library" class="space-y-4">
@@ -130,48 +131,48 @@
                 </div>
             </div>
             
-            <div class="bg-slate-900 border border-slate-800 rounded-2xl p-4 shadow-lg space-y-3">
+            <div class="bg-slate-900 border border-slate-800 rounded-2xl p-3.5 md:p-4 shadow-lg space-y-2.5">
                 <div class="flex justify-between items-start gap-2">
-                    <div class="min-w-0 pr-2">
-                        <div class="flex items-center gap-2">
-                            <h2 id="view-title" class="text-lg md:text-xl font-bold text-white tracking-tight truncate">Título</h2>
+                    <div class="min-w-0 flex-1">
+                        <div class="flex items-center gap-2 flex-wrap">
+                            <h2 id="view-title" class="text-lg md:text-xl font-bold text-white tracking-tight break-words">Título</h2>
                             <span id="stage-badge" class="hidden bg-amber-500 text-slate-950 text-[10px] uppercase tracking-wider px-2 py-0.5 rounded-full font-black shrink-0">EN VIVO</span>
                         </div>
                         <p id="view-artist" class="text-xs text-slate-400 truncate">Artista</p>
                     </div>
 
-                    <!-- Miniatura de YouTube en Recuadro Pequeño -->
-                    <div id="view-youtube-preview-container" class="hidden shrink-0">
-                        <a id="view-youtube-embed-link" href="#" target="_blank" title="Ver video de referencia" class="block relative w-24 h-14 rounded-lg overflow-hidden border border-slate-700 hover:border-amber-400 transition shadow-md group">
-                            <img id="view-youtube-thumb" src="" alt="Miniatura" class="w-full h-full object-cover group-hover:scale-105 transition">
-                            <div class="absolute inset-0 bg-black/40 flex items-center justify-center">
-                                <span class="bg-red-600 text-white rounded-full p-1 text-[10px] shadow">▶</span>
-                            </div>
-                        </a>
+                    <div class="flex items-center gap-2 shrink-0">
+                        <div id="visual-metronome" class="hidden flex items-center gap-1.5 bg-slate-950 border border-slate-800 px-2.5 py-1 rounded-xl">
+                            <div id="metronome-dot" class="w-2.5 h-2.5 rounded-full bg-slate-600 transition-all duration-100 shadow-sm shadow-amber-500/50"></div>
+                            <span class="text-xs font-mono font-bold text-amber-400"><span id="metronome-bpm-val">0</span> BPM</span>
+                        </div>
+
+                        <div class="text-right flex flex-col items-end">
+                            <span id="view-singer-badge" class="bg-amber-500/20 text-amber-300 text-xs px-2.5 py-1 rounded-full font-semibold border border-amber-500/30 whitespace-nowrap">Cantante</span>
+                            <span id="view-rhythm-badge" class="text-[10px] text-slate-400 font-mono"></span>
+                        </div>
                     </div>
                 </div>
 
-                <!-- Indicador Visual de Metrónomo y BPM -->
-                <div id="visual-metronome" class="hidden flex items-center gap-2 bg-slate-900 border border-slate-800 px-3 py-1.5 rounded-xl w-fit">
-                    <div id="metronome-dot" class="w-3 h-3 rounded-full bg-slate-600 transition-all duration-100 shadow-sm shadow-amber-500/50"></div>
-                    <span class="text-xs font-mono font-bold text-amber-400"><span id="metronome-bpm-val">0</span> BPM</span>
+                <div id="viewer-youtube-mini" class="hidden pt-1 border-t border-slate-800/60">
+                    <div class="flex items-center gap-2">
+                        <a id="viewer-youtube-link" href="#" target="_blank" title="Abrir en YouTube" class="relative group rounded-lg overflow-hidden border border-slate-700 hover:border-red-500 shadow-sm shrink-0 inline-block">
+                            <img id="viewer-mini-thumb" src="" alt="Video" class="w-14 h-9 object-cover group-hover:scale-105 transition block">
+                            <div class="absolute inset-0 bg-black/40 flex items-center justify-center group-hover:bg-black/20 transition">
+                                <span class="w-5 h-5 bg-red-600 rounded-full flex items-center justify-center text-white text-[10px] shadow">▶</span>
+                            </div>
+                        </a>
+                        <button type="button" onclick="toggleViewerEmbeddedVideo()" id="btn-toggle-embed" title="Ver / Ocultar reproductor aquí" class="bg-slate-800 hover:bg-red-600 text-slate-200 hover:text-white text-xs px-2.5 py-1.5 rounded-xl transition font-semibold flex items-center gap-1 shadow-sm shrink-0">
+                            <span>📺</span> <span id="toggle-embed-text">Reproducir</span>
+                        </button>
+                    </div>
+                    <div id="viewer-youtube-embed-container" class="hidden mt-2 rounded-xl overflow-hidden border border-slate-700 bg-black aspect-video max-w-sm shadow-2xl">
+                        <iframe id="viewer-youtube-iframe" class="w-full h-full" src="" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowfullscreen></iframe>
+                    </div>
                 </div>
 
                 <div id="view-notes-box" class="hidden bg-amber-500/10 border-l-2 border-amber-400 p-2 rounded-r-lg text-xs text-amber-200/90 font-mono">
                     💡 <span id="view-notes-text"></span>
-                </div>
-
-                <!-- Controles de Tono en Vivo -->
-                <div class="bg-slate-950/80 p-2.5 rounded-xl border border-slate-800/80 flex items-center justify-between">
-                    <div class="flex items-center gap-2">
-                        <span class="text-[10px] uppercase tracking-wider text-slate-400 font-bold">Tono en Vivo:</span>
-                        <span id="current-tone-label" class="text-sm font-mono font-black text-amber-400 bg-amber-500/10 px-2.5 py-0.5 rounded border border-amber-500/30">C</span>
-                    </div>
-                    <div class="flex items-center gap-1.5">
-                        <button type="button" onclick="transpose(-1)" class="bg-slate-800 hover:bg-slate-700 text-slate-200 w-8 h-8 rounded-lg text-xs font-bold transition active:scale-95">-</button>
-                        <button type="button" onclick="resetTranspose()" class="text-[10px] text-slate-400 hover:text-amber-400 px-2 font-mono">Original</button>
-                        <button type="button" onclick="transpose(1)" class="bg-slate-800 hover:bg-slate-700 text-slate-200 w-8 h-8 rounded-lg text-xs font-bold transition active:scale-95">+</button>
-                    </div>
                 </div>
 
                 <div class="grid grid-cols-1 md:grid-cols-2 gap-2 pt-1 border-t border-slate-800">
@@ -191,9 +192,19 @@
                 </div>
 
                 <div id="library-management-panel" class="space-y-3 pt-2 border-t border-slate-800">
-                    <div class="bg-slate-950/80 p-3 rounded-xl border border-slate-800 space-y-2">
-                        <span class="text-xs text-amber-300 font-semibold block">✏️ Modificar versión:</span>
-                        <button onclick="saveSongEdits()" class="w-full bg-slate-800 hover:bg-slate-700 text-amber-300 py-2 rounded-lg text-xs font-bold transition flex items-center justify-center gap-2">
+                    <div class="bg-slate-950/80 p-3 rounded-xl border border-slate-800 space-y-2.5">
+                        <span class="text-xs text-amber-300 font-semibold block flex items-center justify-between">
+                            <span>🎵 Transportar Tono en Vivo:</span>
+                            <span id="current-tone-label" class="text-amber-400 font-mono font-bold text-sm bg-slate-900 px-2 py-0.5 rounded border border-slate-800">C</span>
+                        </span>
+                        
+                        <div class="flex items-center gap-1.5">
+                            <button onclick="transpose(-1)" class="flex-1 bg-slate-900 hover:bg-slate-800 border border-slate-700 text-amber-400 py-1.5 rounded-lg text-xs font-bold transition active:scale-95" title="Bajar medio tono">-</button>
+                            <button onclick="resetTranspose()" class="bg-slate-900 hover:bg-slate-800 border border-slate-700 text-slate-300 px-3 py-1.5 rounded-lg text-xs font-semibold transition active:scale-95" title="Restaurar tono original">Reset</button>
+                            <button onclick="transpose(1)" class="flex-1 bg-slate-900 hover:bg-slate-800 border border-slate-700 text-amber-400 py-1.5 rounded-lg text-xs font-bold transition active:scale-95" title="Subir medio tono">+</button>
+                        </div>
+
+                        <button onclick="saveSongEdits()" class="w-full bg-amber-500 hover:bg-amber-400 text-slate-950 py-2 rounded-lg text-xs font-bold transition flex items-center justify-center gap-2 shadow-md shadow-amber-500/20">
                             <span>💾</span> Fijar tono en vivo como Original
                         </button>
                     </div>
@@ -207,23 +218,23 @@
                         </button>
                     </div>
                 </div>
-            </div>
 
-            <div id="chord-chart-container" class="bg-slate-900 border border-slate-800 rounded-2xl p-3.5 md:p-5 shadow-inner overflow-x-auto min-h-[300px]"></div>
+                <div id="chord-chart-container" class="bg-slate-900 border border-slate-800 rounded-2xl p-3.5 md:p-5 shadow-inner overflow-x-auto min-h-[300px]"></div>
 
-            <div id="stage-nav-bar" class="hidden sticky bottom-2 z-40 bg-slate-900/95 backdrop-blur-md border border-slate-700/80 p-2.5 rounded-2xl shadow-2xl flex items-center justify-between gap-2">
-                <button id="nav-prev-btn" onclick="navigateSetlist(-1)" class="flex-1 bg-slate-800 hover:bg-slate-700 disabled:opacity-30 disabled:pointer-events-none text-slate-200 py-2.5 px-3 rounded-xl text-xs font-bold transition flex items-center justify-center gap-1">
-                    <span>◀</span>
-                    <span class="truncate" id="nav-prev-text">Anterior</span>
-                </button>
-                <div class="px-2 text-center select-none">
-                    <span id="nav-counter" class="text-xs font-mono font-bold text-amber-400 block">1 / 1</span>
-                    <span class="text-[9px] uppercase tracking-wider text-slate-400 font-semibold block">Pauta</span>
+                <div id="stage-nav-bar" class="hidden sticky bottom-16 z-40 bg-slate-900/95 backdrop-blur-md border border-slate-700/80 p-2.5 rounded-2xl shadow-2xl flex items-center justify-between gap-2">
+                    <button id="nav-prev-btn" onclick="navigateSetlist(-1)" class="flex-1 bg-slate-800 hover:bg-slate-700 disabled:opacity-30 disabled:pointer-events-none text-slate-200 py-2.5 px-3 rounded-xl text-xs font-bold transition flex items-center justify-center gap-1">
+                        <span>◀</span>
+                        <span class="truncate" id="nav-prev-text">Anterior</span>
+                    </button>
+                    <div class="px-2 text-center select-none">
+                        <span id="nav-counter" class="text-xs font-mono font-bold text-amber-400 block">1 / 1</span>
+                        <span class="text-[9px] uppercase tracking-wider text-slate-400 font-semibold block">Pauta</span>
+                    </div>
+                    <button id="nav-next-btn" onclick="navigateSetlist(1)" class="flex-1 bg-amber-500 hover:bg-amber-400 disabled:opacity-30 disabled:pointer-events-none text-slate-950 py-2.5 px-3 rounded-xl text-xs font-black transition flex items-center justify-center gap-1 shadow-lg shadow-amber-500/20">
+                        <span class="truncate" id="nav-next-text">Siguiente</span>
+                        <span>▶</span>
+                    </button>
                 </div>
-                <button id="nav-next-btn" onclick="navigateSetlist(1)" class="flex-1 bg-amber-500 hover:bg-amber-400 disabled:opacity-30 disabled:pointer-events-none text-slate-950 py-2.5 px-3 rounded-xl text-xs font-black transition flex items-center justify-center gap-1 shadow-lg shadow-amber-500/20">
-                    <span class="truncate" id="nav-next-text">Siguiente</span>
-                    <span>▶</span>
-                </button>
             </div>
         </section>
 
@@ -289,6 +300,40 @@
                         </div>
                     </div>
 
+                    <div class="space-y-2 bg-slate-900/60 p-3 rounded-2xl border border-slate-800">
+                        <div class="flex items-center justify-between">
+                            <label class="block text-xs font-semibold text-slate-200 flex items-center gap-1.5">
+                                <span class="text-red-500 font-bold">▶</span> Video de Referencia en YouTube <span class="text-slate-400 font-normal text-[11px]">(Opcional)</span>
+                            </label>
+                            <span class="text-[10px] text-slate-400 font-mono">Búsqueda / Enlace</span>
+                        </div>
+                        <div class="flex gap-2">
+                            <input type="text" id="new-youtube-query" oninput="handleYouTubeInput('new')" placeholder="Título de canción o pega enlace..." class="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:border-amber-500">
+                            <button type="button" onclick="pasteYouTubeLink('new')" title="Pegar enlace del portapapeles" class="bg-slate-800 hover:bg-slate-700 text-slate-200 px-3 py-2 rounded-xl text-xs font-bold transition shrink-0 flex items-center gap-1">
+                                <span>📋</span> Pegar
+                            </button>
+                            <button type="button" onclick="searchYouTube('new')" class="bg-red-600 hover:bg-red-500 text-white px-3.5 py-2 rounded-xl text-xs font-bold transition shrink-0 flex items-center gap-1 shadow-sm active:scale-95">
+                                <span>🔍</span> Buscar
+                            </button>
+                        </div>
+
+                        <div id="new-youtube-selected-preview" class="hidden items-center justify-between bg-slate-950 border border-amber-500/40 p-2 rounded-xl shadow-md">
+                            <div class="flex items-center gap-2.5 min-w-0">
+                                <img id="new-preview-thumbnail" src="" alt="Miniatura" class="w-16 h-10 object-cover rounded-lg border border-slate-700 shrink-0">
+                                <div class="min-w-0">
+                                    <span id="new-preview-vid-title" class="text-xs text-slate-200 truncate font-semibold block">Video seleccionado</span>
+                                    <span id="new-preview-vid-channel" class="text-[10px] text-slate-400 truncate block">YouTube</span>
+                                </div>
+                            </div>
+                            <button type="button" onclick="clearSelectedYouTube('new')" class="text-slate-500 hover:text-red-400 text-xs px-2 py-1 transition font-bold shrink-0">✕ Quitar</button>
+                        </div>
+
+                        <div id="new-youtube-results-grid" class="hidden grid grid-cols-1 sm:grid-cols-2 gap-2 max-h-52 overflow-y-auto p-2 bg-slate-950/80 border border-slate-800 rounded-xl no-scrollbar"></div>
+
+                        <input type="hidden" id="new-youtube-url" value="">
+                        <input type="hidden" id="new-youtube-title" value="">
+                    </div>
+
                     <div class="grid grid-cols-2 gap-2">
                         <div>
                             <label class="block text-xs font-medium text-slate-300 mb-1">Tono Base *</label>
@@ -305,15 +350,9 @@
                         </div>  
                     </div>
 
-                    <div class="grid grid-cols-2 gap-2">
-                        <div>
-                            <label class="block text-xs font-medium text-slate-300 mb-1">Tempo (BPM)</label>
-                            <input type="number" id="new-bpm" placeholder="Ej. 120" class="w-full bg-slate-950 border border-slate-800 rounded-xl px-3.5 py-2 text-sm text-white focus:outline-none focus:border-amber-500">
-                        </div>
-                        <div>
-                            <label class="block text-xs font-medium text-slate-300 mb-1">Video YouTube ID</label>
-                            <input type="text" id="new-youtube" placeholder="Ej. dQw4w9WgXcQ" class="w-full bg-slate-950 border border-slate-800 rounded-xl px-3.5 py-2 text-sm text-white focus:outline-none focus:border-amber-500">
-                        </div>
+                    <div>
+                        <label class="block text-xs font-medium text-slate-300 mb-1">Tempo (BPM)</label>
+                        <input type="number" id="new-bpm" placeholder="Ej. 120" class="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-sm text-white focus:outline-none focus:border-amber-500">
                     </div>
 
                     <div>
@@ -342,18 +381,35 @@
 
     </main>
 
-    <!-- Modal de Edición Completa con Buscador de YouTube Integrado -->
-    <div id="quick-lyrics-modal" class="hidden fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-2.5 md:p-4">
-        <div class="bg-slate-900 border border-slate-800 rounded-2xl w-full max-w-xl max-h-[92vh] flex flex-col shadow-2xl overflow-hidden">
-            <div class="p-3 border-b border-slate-800 flex justify-between items-center bg-slate-950 shrink-0">
-                <div>
-                    <h3 class="font-bold text-white text-sm flex items-center gap-1.5"><span>✏️ Editor Completo de Canción</span></h3>
-                    <p id="quick-lyrics-song-title" class="text-xs text-amber-400 font-mono font-semibold truncate">Canción</p>
-                </div>
-                <button onclick="closeQuickLyricsModal()" class="text-slate-400 hover:text-white p-1 text-sm font-bold">✕</button>
+    <!-- Barra de Navegación Inferior (Bottom Navigation Bar) Estilo App Nativa -->
+    <nav class="fixed bottom-0 left-0 right-0 z-50 bg-slate-900/95 backdrop-blur-md border-t border-slate-800 px-6 py-2.5 flex justify-around items-center shadow-2xl">
+        <button onclick="switchTab('setlist')" id="btn-setlist" class="flex flex-col items-center gap-0.5 text-slate-400 hover:text-amber-400 transition">
+            <span class="text-lg">📋</span>
+            <span class="text-[10px] font-semibold tracking-wider uppercase">Pauta (<span id="setlist-count">0</span>)</span>
+        </button>
+        <button onclick="switchTab('library')" id="btn-library" class="flex flex-col items-center gap-0.5 text-amber-400 transition">
+            <span class="text-lg">🎵</span>
+            <span class="text-[10px] font-semibold tracking-wider uppercase">Canciones</span>
+        </button>
+        <button onclick="switchTab('add')" id="btn-add" class="flex flex-col items-center gap-0.5 text-slate-400 hover:text-amber-400 transition">
+            <span class="text-lg">➕</span>
+            <span class="text-[10px] font-semibold tracking-wider uppercase">Nueva</span>
+        </button>
+    </nav>
+
+<div id="quick-lyrics-modal" class="hidden fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-2.5 md:p-4">
+    <div class="bg-slate-900 border border-slate-800 rounded-2xl w-full max-w-xl max-h-[92vh] flex flex-col shadow-2xl overflow-hidden">
+        
+        <div class="p-3 border-b border-slate-800 flex justify-between items-center bg-slate-950 shrink-0">
+            <div>
+                <h3 class="font-bold text-white text-sm flex items-center gap-1.5"><span>✏️ Editor de Canción</span></h3>
+                <p id="quick-lyrics-song-title" class="text-xs text-amber-400 font-mono font-semibold truncate">Canción</p>
             </div>
-            
-            <div class="p-3 bg-slate-900 border-b border-slate-800 grid grid-cols-2 gap-2 text-xs shrink-0 overflow-y-auto max-h-60">
+            <button onclick="closeQuickLyricsModal()" class="text-slate-400 hover:text-white p-1 text-sm font-bold">✕</button>
+        </div>
+        
+        <div class="flex-1 overflow-y-auto p-3 space-y-3">
+            <div class="bg-slate-900 grid grid-cols-2 gap-2 text-xs">
                 <div class="col-span-2 sm:col-span-1">
                     <label class="block text-slate-400 mb-1">Título</label>
                     <input type="text" id="quick-edit-title" class="w-full bg-slate-950 border border-slate-700 rounded-lg px-2.5 py-1.5 text-white focus:border-amber-500 outline-none">
@@ -362,6 +418,41 @@
                     <label class="block text-slate-400 mb-1">Artista</label>
                     <input type="text" id="quick-edit-artist" class="w-full bg-slate-950 border border-slate-700 rounded-lg px-2.5 py-1.5 text-white focus:border-amber-500 outline-none">
                 </div>
+
+                <div class="col-span-2 space-y-2 bg-slate-950/70 p-3 rounded-xl border border-slate-800">
+                    <div class="flex items-center justify-between">
+                        <label class="block text-xs font-semibold text-slate-200 flex items-center gap-1.5">
+                            <span class="text-red-500 font-bold">▶</span> Video de Referencia en YouTube <span class="text-slate-400 font-normal text-[11px]">(Opcional)</span>
+                        </label>
+                        <span class="text-[10px] text-slate-400 font-mono">Búsqueda / Enlace</span>
+                    </div>
+                    <div class="flex gap-2">
+                        <input type="text" id="edit-youtube-query" oninput="handleYouTubeInput('edit')" placeholder="Título de canción o pega enlace..." class="w-full bg-slate-900 border border-slate-700 rounded-lg px-2.5 py-1.5 text-xs text-white focus:outline-none focus:border-amber-500">
+                        <button type="button" onclick="pasteYouTubeLink('edit')" title="Pegar enlace del portapapeles" class="bg-slate-800 hover:bg-slate-700 text-slate-200 px-2.5 py-1.5 rounded-lg text-xs font-bold transition shrink-0 flex items-center gap-1">
+                            <span>📋</span> Pegar
+                        </button>
+                        <button type="button" onclick="searchYouTube('edit')" class="bg-red-600 hover:bg-red-500 text-white px-3 py-1.5 rounded-lg text-xs font-bold transition shrink-0 flex items-center gap-1 shadow-sm active:scale-95">
+                            <span>🔍</span> Buscar
+                        </button>
+                    </div>
+
+                    <div id="edit-youtube-selected-preview" class="hidden items-center justify-between bg-slate-900 border border-amber-500/40 p-2 rounded-lg shadow-md">
+                        <div class="flex items-center gap-2.5 min-w-0">
+                            <img id="edit-preview-thumbnail" src="" alt="Miniatura" class="w-16 h-10 object-cover rounded-md border border-slate-700 shrink-0">
+                            <div class="min-w-0">
+                                <span id="edit-preview-vid-title" class="text-xs text-slate-200 truncate font-semibold block">Video seleccionado</span>
+                                <span id="edit-preview-vid-channel" class="text-[10px] text-slate-400 truncate block">YouTube</span>
+                            </div>
+                        </div>
+                        <button type="button" onclick="clearSelectedYouTube('edit')" class="text-slate-500 hover:text-red-400 text-xs px-2 py-1 transition font-bold shrink-0">✕ Quitar</button>
+                    </div>
+
+                    <div id="edit-youtube-results-grid" class="hidden grid grid-cols-1 sm:grid-cols-2 gap-2 max-h-48 overflow-y-auto p-2 bg-slate-900/90 border border-slate-800 rounded-xl no-scrollbar"></div>
+
+                    <input type="hidden" id="edit-youtube-url" value="">
+                    <input type="hidden" id="edit-youtube-title" value="">
+                </div>
+
                 <div>
                     <label class="block text-slate-400 mb-1">Cantante</label>
                     <input type="text" id="quick-edit-singer" class="w-full bg-slate-950 border border-slate-700 rounded-lg px-2.5 py-1.5 text-white focus:border-amber-500 outline-none">
@@ -384,21 +475,9 @@
                     <label class="block text-slate-400 mb-1">Notas</label>
                     <input type="text" id="quick-edit-notes" class="w-full bg-slate-950 border border-slate-700 rounded-lg px-2.5 py-1.5 text-white focus:border-amber-500 outline-none">
                 </div>
-
-                <!-- Buscador Integrado de YouTube -->
-                <div class="col-span-2 pt-2 border-t border-slate-800">
-                    <label class="block text-slate-400 mb-1 font-bold text-amber-400">🔍 Buscar Video de Referencia (YouTube):</label>
-                    <div class="flex gap-1.5 mb-2">
-                        <input type="text" id="youtube-search-query" placeholder="Escribe el nombre del tema para buscar..." class="w-full bg-slate-950 border border-slate-700 rounded-lg px-2.5 py-1.5 text-white focus:border-amber-500 outline-none">
-                        <button type="button" onclick="searchYouTubeVideos()" class="bg-amber-500 hover:bg-amber-400 text-slate-950 px-3 py-1.5 rounded-lg font-bold transition shrink-0">Buscar</button>
-                    </div>
-                    <input type="hidden" id="quick-edit-youtube" value="">
-                    <!-- Contenedor de Miniaturas Encontradas -->
-                    <div id="youtube-results-container" class="grid grid-cols-3 gap-2 max-h-36 overflow-y-auto no-scrollbar"></div>
-                </div>
             </div>
            
-            <div class="px-3 py-1.5 bg-slate-950/90 border-b border-slate-800 flex items-center justify-between gap-2 overflow-x-auto no-scrollbar shrink-0">
+            <div class="px-3 py-1.5 bg-slate-950/90 border border-slate-800 rounded-xl flex items-center justify-between gap-2 overflow-x-auto no-scrollbar">
                 <div class="flex items-center gap-1.5 shrink-0">
                     <span class="text-[10px] text-amber-400 font-bold uppercase tracking-wider">Círculo:</span>
                     <select id="quick-modal-tone-select" onchange="renderHarmonicCircleChips(this.value, 'quick-lyrics-harmonic-chips', 'quick-lyrics-textarea')" class="bg-slate-900 border border-slate-700 text-amber-400 font-bold text-xs rounded-lg px-2 py-0.5 focus:outline-none">
@@ -407,7 +486,8 @@
                 </div>
                 <div id="quick-lyrics-harmonic-chips" class="flex items-center gap-1 overflow-x-auto no-scrollbar py-0.5"></div>
             </div>
-            <div class="px-3 py-1.5 bg-slate-900 border-b border-slate-800 flex items-center justify-between gap-1.5 overflow-x-auto no-scrollbar shrink-0 text-xs">
+
+            <div class="px-3 py-1.5 bg-slate-900 border border-slate-800 rounded-xl flex items-center justify-between gap-1.5 overflow-x-auto no-scrollbar text-xs">
                 <div class="flex items-center gap-1 shrink-0">
                     <span class="text-[10px] text-slate-400 font-semibold uppercase">Estructura:</span>
                     <button type="button" onclick="insertChordAtCursor('[Intro]\n', 'quick-lyrics-textarea')" class="px-2 py-0.5 rounded bg-amber-500/10 text-amber-300 hover:bg-amber-500/20 font-semibold text-[11px] shrink-0">[Intro]</button>
@@ -416,18 +496,22 @@
                     <button type="button" onclick="insertChordAtCursor('[Solo]\n', 'quick-lyrics-textarea')" class="px-2 py-0.5 rounded bg-amber-500/10 text-amber-300 hover:bg-amber-500/20 font-semibold text-[11px] shrink-0">[Solo]</button>
                 </div>
                 <button type="button" onclick="autoFormatTabsToBrackets('quick-lyrics-textarea')" class="text-[11px] bg-amber-500/20 hover:bg-amber-500/30 text-amber-300 border border-amber-500/40 px-2 py-0.5 rounded-lg font-bold flex items-center gap-1 shrink-0 transition active:scale-95">
-                    <span>🪄</span> Auto-formato Internet
+                    <span>🪄</span> Auto-formato
                 </button>
             </div>
-            <div class="p-3 flex-1 overflow-hidden flex flex-col min-h-[220px]">
-                <textarea id="quick-lyrics-textarea" rows="10" class="w-full flex-1 bg-slate-950 border border-slate-800 rounded-xl p-3 font-mono text-xs md:text-sm text-slate-100 focus:outline-none focus:border-amber-500 leading-snug" placeholder="Letra con acordes entre corchetes..."></textarea>
-            </div>
-            <div class="p-3 border-t border-slate-800 bg-slate-950 flex justify-end gap-2 shrink-0">
-                <button onclick="closeQuickLyricsModal()" class="px-3.5 py-1.5 rounded-xl text-xs font-semibold bg-slate-800 text-slate-300 hover:text-white transition">Cancelar</button>
-                <button onclick="saveQuickLyrics()" class="px-4 py-1.5 rounded-xl text-xs font-bold bg-amber-500 hover:bg-amber-400 text-slate-950 transition">💾 Guardar Correcciones</button>
+
+            <div class="flex flex-col">
+                <textarea id="quick-lyrics-textarea" rows="10" class="w-full bg-slate-950 border border-slate-800 rounded-xl p-3 font-mono text-xs md:text-sm text-slate-100 focus:outline-none focus:border-amber-500 leading-snug" placeholder="Letra con acordes entre corchetes..."></textarea>
             </div>
         </div>
+
+        <div class="p-3 border-t border-slate-800 bg-slate-950 flex justify-end gap-2 shrink-0">
+            <button onclick="closeQuickLyricsModal()" class="px-3.5 py-1.5 rounded-xl text-xs font-semibold bg-slate-800 text-slate-300 hover:text-white transition">Cancelar</button>
+            <button onclick="saveQuickLyrics()" class="px-4 py-1.5 rounded-xl text-xs font-bold bg-amber-500 hover:bg-amber-400 text-slate-950 transition shadow-md shadow-amber-500/20">💾 Guardar Correcciones</button>
+        </div>
+
     </div>
+</div>
 
     <!-- Librerías de Firebase -->
     <script src="https://www.gstatic.com/firebasejs/10.10.0/firebase-app-compat.js"></script>
@@ -460,7 +544,6 @@
                 tone: "G", 
                 rhythm: "Salsa", 
                 bpm: "105",
-                youtube: "YXz1QzWbp0M",
                 notes: "Entrada con metales en compás 4. Solo de trompeta en el puente.",
                 lyrics: "[Intro]\n[G] [D] [Em] [C]\n\n[Coro]\n[G] Voy a reír, voy a [D] bailar\n[Em] Vivir mi vida la, la, [C] la, la\n[G] Voy a reír, voy a [D] gozar\n[Em] Vivir mi vida la, la, [C] la, la" 
             },
@@ -472,7 +555,6 @@
                 tone: "C", 
                 rhythm: "Balada", 
                 bpm: "72",
-                youtube: "koJlIGDImiU",
                 notes: "Guitarra acústica arpegiada en el verso 1.",
                 lyrics: "[Verso]\n[C] Si pudiera ser tu [G/B] héroe\n[Am] Si pudiera ser tu [F] Dios\n[C] Que te salvaría a [G/B] ti\n[Am] Mil veces del [F] dolor" 
             }
@@ -792,6 +874,15 @@
         function switchTab(tab, fromHistory = false) {
             stopAutoScroll();
 
+            if (tab !== 'viewer') {
+                const ytIframe = document.getElementById('viewer-youtube-iframe');
+                if (ytIframe) ytIframe.src = "";
+                const ytEmbed = document.getElementById('viewer-youtube-embed-container');
+                if (ytEmbed) ytEmbed.classList.add('hidden');
+                const toggleBtnText = document.getElementById('toggle-embed-text');
+                if (toggleBtnText) toggleBtnText.innerText = "Reproducir";
+            }
+
             if (!fromHistory) {
                 window.history.pushState({ tab: tab }, "", "#" + tab);
             }
@@ -801,25 +892,30 @@
             document.getElementById('view-setlist').classList.add('hidden');
             document.getElementById('view-add').classList.add('hidden');
 
-            document.getElementById('btn-library').className = "px-2.5 md:px-3 py-1.5 rounded-lg text-xs md:text-sm font-semibold bg-slate-800 text-slate-300 hover:text-white transition";
-            document.getElementById('btn-setlist').className = "px-2.5 md:px-3 py-1.5 rounded-lg text-xs md:text-sm font-semibold bg-slate-800 text-slate-300 hover:text-white transition";
-            document.getElementById('btn-add').className = "px-2.5 md:px-3 py-1.5 rounded-lg text-xs md:text-sm font-semibold bg-slate-800 text-slate-300 hover:text-white transition";
+            // Actualizar estado visual de los botones de la barra inferior
+            const setlistNavBtn = document.querySelector('button[onclick="switchTab(\'setlist\')"]');
+            const libraryNavBtn = document.querySelector('button[onclick="switchTab(\'library\')"]');
+            const addNavBtn = document.querySelector('button[onclick="switchTab(\'add\')"]');
+
+            if (setlistNavBtn) setlistNavBtn.className = "flex flex-col items-center gap-0.5 text-slate-400 hover:text-amber-400 transition";
+            if (libraryNavBtn) libraryNavBtn.className = "flex flex-col items-center gap-0.5 text-slate-400 hover:text-amber-400 transition";
+            if (addNavBtn) addNavBtn.className = "flex flex-col items-center gap-0.5 text-slate-400 hover:text-amber-400 transition";
 
             if (tab === 'library') {
                 document.getElementById('view-library').classList.remove('hidden');
-                document.getElementById('btn-library').className = "px-2.5 md:px-3 py-1.5 rounded-lg text-xs md:text-sm font-semibold bg-amber-500 text-slate-950 transition";
+                if (libraryNavBtn) libraryNavBtn.className = "flex flex-col items-center gap-0.5 text-amber-400 transition";
                 renderSingerChips();
                 renderLibrary(songs);
             } else if (tab === 'viewer') {
                 document.getElementById('view-viewer').classList.remove('hidden');
             } else if (tab === 'setlist') {
                 document.getElementById('view-setlist').classList.remove('hidden');
-                document.getElementById('btn-setlist').className = "px-2.5 md:px-3 py-1.5 rounded-lg text-xs md:text-sm font-semibold bg-amber-500 text-slate-950 transition";
+                if (setlistNavBtn) setlistNavBtn.className = "flex flex-col items-center gap-0.5 text-amber-400 transition";
                 renderSetlistSelector();
                 renderSetlist();
             } else if (tab === 'add') {
                 document.getElementById('view-add').classList.remove('hidden');
-                document.getElementById('btn-add').className = "px-2.5 md:px-3 py-1.5 rounded-lg text-xs md:text-sm font-semibold bg-amber-500 text-slate-950 transition";
+                if (addNavBtn) addNavBtn.className = "flex flex-col items-center gap-0.5 text-amber-400 transition";
                 updateNewSongHarmonicCircle(document.getElementById('new-tone').value);
             }
             saveData();
@@ -876,26 +972,13 @@
                 const card = document.createElement('div');
                 card.className = "bg-slate-900 border border-slate-800 p-3.5 rounded-xl flex justify-between items-center cursor-pointer hover:border-amber-500/80 transition group shadow-sm";
                 card.onclick = () => openSongViewer(song.id, 'library');
-                
-                // Miniatura opcional en la tarjeta de la librería si tiene video asignado
-                let thumbHtml = '';
-                if (song.youtube) {
-                    thumbHtml = `<img src="https://img.youtube.com/vi/${song.youtube}/mqdefault.jpg" class="w-12 h-8 rounded object-cover border border-slate-700 shrink-0">`;
-                }
-
                 card.innerHTML = `
-                    <div class="flex items-center gap-3 min-w-0 pr-2">
-                        ${thumbHtml}
-                        <div class="space-y-0.5 min-w-0">
-                            <h3 class="font-bold text-white text-sm group-hover:text-amber-400 transition truncate">${song.title}</h3>
-                            <p class="text-xs text-slate-400 truncate">
-                                Artista: <span class="text-slate-300">${song.artist}</span> • Cantante: <span class="text-amber-400 font-semibold">${song.singer}</span>
-                            </p>
-                            <div class="flex items-center gap-2 text-[10px] text-slate-500 font-mono">
-                                ${song.rhythm ? `<span>${song.rhythm}</span>` : ''}
-                                ${song.bpm ? `<span class="text-amber-400 font-semibold">⚡ ${song.bpm} BPM</span>` : ''}
-                            </div>
-                        </div>
+                    <div class="space-y-0.5 min-w-0 pr-2">
+                        <h3 class="font-bold text-white text-sm group-hover:text-amber-400 transition truncate">${song.title}</h3>
+                        <p class="text-xs text-slate-400 truncate">
+                            Artista: <span class="text-slate-300">${song.artist}</span> • Cantante: <span class="text-amber-400 font-semibold">${song.singer}</span>
+                        </p>
+                        ${song.rhythm ? `<span class="text-[10px] text-slate-500 font-mono">${song.rhythm} ${song.bpm ? '• ' + song.bpm + ' BPM' : ''}</span>` : ''}
                     </div>
                     <div class="text-right flex items-center gap-2 shrink-0">
                         <span class="bg-amber-500/10 border border-amber-500/30 text-amber-400 text-xs px-2.5 py-1 rounded-lg font-mono font-bold">
@@ -981,19 +1064,8 @@
 
             const baseTone = activeSong.currentToneInSession || activeSong.tone || 'C';
             const toneLabel = document.getElementById('current-tone-label');
-            if (toneLabel) toneLabel.innerText = baseTone;
-
-            // Configurar miniatura de YouTube en el Visor
-            const ytContainer = document.getElementById('view-youtube-preview-container');
-            const ytThumb = document.getElementById('view-youtube-thumb');
-            const ytEmbedLink = document.getElementById('view-youtube-embed-link');
-
-            if (activeSong.youtube && activeSong.youtube.trim()) {
-                ytThumb.src = `https://img.youtube.com/vi/${activeSong.youtube}/hqdefault.jpg`;
-                ytEmbedLink.href = `https://www.youtube.com/watch?v=${activeSong.youtube}`;
-                ytContainer.classList.remove('hidden');
-            } else {
-                ytContainer.classList.add('hidden');
+            if (toneLabel) {
+                toneLabel.innerText = baseTone;
             }
 
             const mgmtPanel = document.getElementById('library-management-panel');
@@ -1021,6 +1093,32 @@
             renderChordChart();
             switchTab('viewer');
             window.scrollTo({ top: 0, behavior: 'instant' });
+
+            const ytMiniContainer = document.getElementById('viewer-youtube-mini');
+            const ytLink = document.getElementById('viewer-youtube-link');
+            const ytMiniThumb = document.getElementById('viewer-mini-thumb');
+            const ytMiniTitle = document.getElementById('viewer-mini-title');
+            const ytIframe = document.getElementById('viewer-youtube-iframe');
+            const ytEmbedContainer = document.getElementById('viewer-youtube-embed-container');
+            const toggleBtnText = document.getElementById('toggle-embed-text');
+
+            if (ytIframe) ytIframe.src = "";
+            if (ytEmbedContainer) ytEmbedContainer.classList.add('hidden');
+            if (toggleBtnText) toggleBtnText.innerText = "Reproducir";
+
+            if (activeSong.youtubeUrl && activeSong.youtubeUrl.trim()) {
+                ytLink.href = activeSong.youtubeUrl;
+                const vId = extractYouTubeId(activeSong.youtubeUrl);
+                if (vId) {
+                    ytMiniThumb.src = `https://img.youtube.com/vi/${vId}/mqdefault.jpg`;
+                }
+                if (ytMiniTitle) {
+                    ytMiniTitle.innerText = activeSong.youtubeTitle || activeSong.title || 'Ver en YouTube ▶';
+                }
+                ytMiniContainer.classList.remove('hidden');
+            } else {
+                ytMiniContainer.classList.add('hidden');
+            }
         }
 
         function updateStageNavButtons() {
@@ -1106,8 +1204,7 @@
             transposeSteps += steps;
             let baseTone = activeSong.currentToneInSession || activeSong.tone || 'C';
             let newTone = transposeChord(baseTone, transposeSteps);
-            const toneLabel = document.getElementById('current-tone-label');
-            if (toneLabel) toneLabel.innerText = newTone;
+            document.getElementById('current-tone-label').innerText = newTone;
             renderChordChart();
             window.scrollTo({ top: currentScroll, behavior: 'instant' });
         }
@@ -1116,8 +1213,7 @@
             const currentScroll = window.scrollY;
             transposeSteps = 0;
             let baseTone = activeSong.currentToneInSession || activeSong.tone || 'C';
-            const toneLabel = document.getElementById('current-tone-label');
-            if (toneLabel) toneLabel.innerText = baseTone;
+            document.getElementById('current-tone-label').innerText = baseTone;
             renderChordChart();
             window.scrollTo({ top: currentScroll, behavior: 'instant' });
         }
@@ -1421,24 +1517,38 @@
                 return;
             }
 
+            const playlistInfo = getSetlistPlaylistUrl(activeSetlist);
+            if (playlistInfo) {
+                const playlistBanner = document.createElement('a');
+                playlistBanner.href = playlistInfo.url;
+                playlistBanner.target = "_blank";
+                playlistBanner.className = "flex items-center justify-between bg-red-950/40 hover:bg-red-900/50 border border-red-500/40 p-2.5 rounded-xl transition group shadow-md";
+                playlistBanner.innerHTML = `
+                    <div class="flex items-center gap-2.5 min-w-0">
+                        <span class="w-7 h-7 rounded-lg bg-red-600 flex items-center justify-center text-white text-xs font-bold shrink-0 shadow-sm shadow-red-600/50">▶</span>
+                        <div class="min-w-0">
+                            <h5 class="text-xs font-bold text-white group-hover:text-amber-300 transition truncate">Playlist en YouTube (${playlistInfo.count} temas)</h5>
+                            <span class="text-[10px] text-slate-400 truncate block">Reproducir lista completa para ensayar</span>
+                        </div>
+                    </div>
+                    <span class="text-xs font-bold text-red-400 group-hover:translate-x-0.5 transition shrink-0">Abrir ↗</span>
+                `;
+                container.appendChild(playlistBanner);
+            }
+
             activeSetlist.songs.forEach((song, index) => {
+                const ytUrl = song.youtubeUrl || (songs.find(s => s.id === song.id)?.youtubeUrl);
+                const hasYt = !!(ytUrl && extractYouTubeId(ytUrl));
+
                 const card = document.createElement('div');
                 card.className = "bg-slate-900 border border-slate-800 p-3 rounded-xl flex justify-between items-center hover:border-slate-700 transition";
-                
-                let thumbHtml = '';
-                if (song.youtube) {
-                    thumbHtml = `<img src="https://img.youtube.com/vi/${song.youtube}/mqdefault.jpg" class="w-10 h-7 rounded object-cover border border-slate-700 shrink-0">`;
-                }
-
                 card.innerHTML = `
                     <div class="flex items-center gap-2.5 min-w-0 pr-2">
                         <span class="w-6 text-center text-xs font-black text-amber-500 font-mono shrink-0">#${index + 1}</span>
-                        ${thumbHtml}
                         <div class="min-w-0 truncate">
                             <h4 class="font-bold text-white text-sm hover:text-amber-400 cursor-pointer truncate" onclick="openSongViewer(getActiveSetlist().songs[${index}], 'setlist', ${index})">${song.title}</h4>
                             <p class="text-xs text-slate-400 truncate">
-                                Cantante: <span class="text-amber-400 font-semibold">${song.singer || 'Banda'}</span> • Tono: <strong class="text-amber-300 font-mono">${song.currentToneInSession || song.tone}</strong>
-                                ${song.bpm ? ` • <span class="text-amber-400 font-mono font-semibold">⚡ ${song.bpm} BPM</span>` : ''}
+                                Cantante: <span class="text-amber-400 font-semibold">${song.singer || 'Banda'}</span> • Tono: <strong class="text-amber-300 font-mono">${song.currentToneInSession || song.tone}</strong>${hasYt ? ' • <span class="text-red-400 font-semibold">🎬 Video</span>' : ''}
                             </p>
                         </div>
                     </div>
@@ -1572,6 +1682,26 @@
             }
         }
 
+        function getSetlistPlaylistUrl(activeSetlist = null) {
+            const active = activeSetlist || getActiveSetlist();
+            if (!active || !active.songs || !active.songs.length) return null;
+            const videoIds = [];
+            active.songs.forEach(song => {
+                const ytUrl = song.youtubeUrl || (songs.find(s => s.id === song.id)?.youtubeUrl);
+                if (ytUrl) {
+                    const vId = extractYouTubeId(ytUrl);
+                    if (vId && !videoIds.includes(vId)) {
+                        videoIds.push(vId);
+                    }
+                }
+            });
+            if (videoIds.length === 0) return null;
+            return {
+                url: `https://www.youtube.com/watch_videos?video_ids=${videoIds.join(',')}`,
+                count: videoIds.length
+            };
+        }
+
         function generateSetlistShareText() {
             const active = getActiveSetlist();
             if (!active.songs.length) {
@@ -1583,8 +1713,15 @@
             text += `🎵 Total: ${active.songs.length} canciones confirmadas:\n\n`;
 
             active.songs.forEach((song, i) => {
-                text += `${i + 1}. *${song.title}* — Cantante: ${song.singer || 'Banda'} (Tono: *${song.currentToneInSession || song.tone}*${song.bpm ? ' | ' + song.bpm + ' BPM' : ''})\n`;
+                const ytUrl = song.youtubeUrl || (songs.find(s => s.id === song.id)?.youtubeUrl);
+                const hasYt = ytUrl && extractYouTubeId(ytUrl) ? ' 🎬' : '';
+                text += `${i + 1}. *${song.title}* — Cantante: ${song.singer || 'Banda'} (Tono: *${song.currentToneInSession || song.tone}*)${hasYt}\n`;
             });
+
+            const playlistInfo = getSetlistPlaylistUrl(active);
+            if (playlistInfo) {
+                text += `\n▶️ *Playlist en YouTube para repasar (${playlistInfo.count} videos):*\n${playlistInfo.url}\n`;
+            }
 
             text += `\n🤘 ¡A estudiar y repasar los tonos, nos vemos en el ensayo! 🎶\n`;
             text += `📱 Entra a la app aquí: https://dobleaa.netlify.app/`;
@@ -1630,13 +1767,28 @@
             }
 
             activeSong.tone = newTone;
+            activeSong.currentToneInSession = newTone;
             transposeSteps = 0;
+
+            const inCatalog = songs.find(s => s.id === activeSong.id);
+            if (inCatalog) {
+                inCatalog.tone = newTone;
+                inCatalog.lyrics = activeSong.lyrics;
+            }
+
+            const activeSetlist = getActiveSetlist();
+            const inSetlist = activeSetlist.songs.find(s => s.id === activeSong.id || s.uniqueKey === activeSong.uniqueKey);
+            if (inSetlist) {
+                inSetlist.currentToneInSession = newTone;
+                inSetlist.tone = newTone;
+                inSetlist.lyrics = activeSong.lyrics;
+            }
 
             saveData();
             renderChordChart();
             window.scrollTo({ top: savedWindowScroll, behavior: 'instant' });
 
-            showNotification("💾 ¡Acordes fijados en el nuevo tono base!");
+            showNotification("💾 ¡Tono base fijado y acordes de la letra actualizados!");
             syncUploadToCloud(true);
         }
 
@@ -1658,9 +1810,10 @@
                 tone: finalNewTone,
                 rhythm: activeSong.rhythm,
                 bpm: activeSong.bpm || '',
-                youtube: activeSong.youtube || '',
                 notes: activeSong.notes || '',
-                lyrics: clonedLyrics
+                lyrics: clonedLyrics,
+                youtubeUrl: activeSong.youtubeUrl || '',
+                youtubeTitle: activeSong.youtubeTitle || ''
             };
 
             songs.push(clonedSong);
@@ -1683,6 +1836,9 @@
 
         function saveNewSong(e) {
             e.preventDefault();
+            const ytUrlInput = document.getElementById('new-youtube-url');
+            const ytTitleInput = document.getElementById('new-youtube-title');
+
             const newSong = {
                 id: Date.now(),
                 title: document.getElementById('new-title').value.trim(),
@@ -1691,14 +1847,16 @@
                 tone: document.getElementById('new-tone').value,
                 rhythm: document.getElementById('new-rhythm').value.trim(),
                 bpm: document.getElementById('new-bpm').value.trim(),
-                youtube: document.getElementById('new-youtube').value.trim(),
                 notes: document.getElementById('new-notes').value.trim(),
-                lyrics: document.getElementById('new-lyrics').value
+                lyrics: document.getElementById('new-lyrics').value,
+                youtubeUrl: ytUrlInput ? ytUrlInput.value.trim() : '',
+                youtubeTitle: ytTitleInput ? ytTitleInput.value.trim() : ''
             };
             songs.push(newSong);
             saveData();
             showNotification("¡Canción agregada a la librería!");
             document.getElementById('add-song-form').reset();
+            clearSelectedYouTube('new');
             switchTab('library');
             syncUploadToCloud(true);
         }
@@ -1771,52 +1929,6 @@
             reader.readAsText(file);
         }
 
-        // --- BUSCADOR DE YOUTUBE DESDE EL EDITOR ---
-        async function searchYouTubeVideos() {
-            const query = document.getElementById('youtube-search-query').value.trim();
-            const container = document.getElementById('youtube-results-container');
-            if (!query) return;
-
-            container.innerHTML = `<p class="text-xs text-slate-400 col-span-3 text-center py-2">Buscando en YouTube...</p>`;
-
-            try {
-                // Usando un feed público de YouTube para buscar resultados sin requerir API Key de pago
-                const res = await fetch(`https://www.youtube.com/results?search_query=${encodeURIComponent(query)}`);
-                const html = await res.text();
-                
-                // Extraer IDs de video del HTML de búsqueda de YouTube
-                const matches = [...html.matchAll(/"videoId":"([a-zA-Z0-9_-]{11})"/g)];
-                const uniqueIds = [...new Set(matches.map(m => m.id || m[1]))].slice(0, 6);
-
-                container.innerHTML = "";
-                if (uniqueIds.length === 0) {
-                    container.innerHTML = `<p class="text-xs text-red-400 col-span-3 text-center py-2">No se encontraron videos. Prueba con otro término.</p>`;
-                    return;
-                }
-
-                uniqueIds.forEach(videoId => {
-                    const thumbDiv = document.createElement('div');
-                    thumbDiv.className = "relative rounded-lg overflow-hidden border-2 border-slate-700 hover:border-amber-400 cursor-pointer group transition aspect-video";
-                    thumbDiv.innerHTML = `
-                        <img src="https://img.youtube.com/vi/${videoId}/mqdefault.jpg" class="w-full h-full object-cover">
-                        <div class="absolute inset-0 bg-black/30 group-hover:bg-transparent transition flex items-center justify-center">
-                            <span class="bg-amber-500 text-slate-950 text-[9px] font-bold px-1.5 py-0.5 rounded shadow">Seleccionar</span>
-                        </div>
-                    `;
-                    thumbDiv.onclick = () => {
-                        document.getElementById('quick-edit-youtube').value = videoId;
-                        // Resaltar selección
-                        document.querySelectorAll('#youtube-results-container > div').forEach(d => d.classList.remove('border-amber-400', 'ring-2', 'ring-amber-400'));
-                        thumbDiv.classList.add('border-amber-400', 'ring-2', 'ring-amber-400');
-                        showNotification("✅ ¡Video seleccionado para la miniatura!");
-                    };
-                    container.appendChild(thumbDiv);
-                });
-            } catch (err) {
-                container.innerHTML = `<p class="text-xs text-red-400 col-span-3 text-center py-2">Error al conectar con YouTube. Puedes pegar el ID directamente.</p>`;
-            }
-        }
-
         function openQuickLyricsEditor() {
             if (!activeSong) return;
             document.getElementById('quick-lyrics-song-title').innerText = `Editando: ${activeSong.title}`;
@@ -1827,13 +1939,31 @@
             document.getElementById('quick-edit-tone').value = activeSong.tone || 'C';
             document.getElementById('quick-edit-rhythm').value = activeSong.rhythm || '';
             document.getElementById('quick-edit-bpm').value = activeSong.bpm || '';
-            document.getElementById('quick-edit-youtube').value = activeSong.youtube || '';
             document.getElementById('quick-edit-notes').value = activeSong.notes || '';
             document.getElementById('quick-lyrics-textarea').value = activeSong.lyrics || '';
 
-            // Rellenar automáticamente la barra de búsqueda de YouTube con título y artista
-            document.getElementById('youtube-search-query').value = `${activeSong.title} ${activeSong.artist}`;
-            document.getElementById('youtube-results-container').innerHTML = "";
+            const editYtUrl = document.getElementById('edit-youtube-url');
+            const editYtTitle = document.getElementById('edit-youtube-title');
+            const editYtQuery = document.getElementById('edit-youtube-query');
+            const editPreviewBox = document.getElementById('edit-youtube-selected-preview');
+            const editThumb = document.getElementById('edit-preview-thumbnail');
+            const editVidTitle = document.getElementById('edit-preview-vid-title');
+            const editVidChannel = document.getElementById('edit-preview-vid-channel');
+            const editResults = document.getElementById('edit-youtube-results-grid');
+            if (editResults) editResults.classList.add('hidden');
+
+            if (activeSong.youtubeUrl && activeSong.youtubeUrl.trim()) {
+                if (editYtUrl) editYtUrl.value = activeSong.youtubeUrl;
+                if (editYtTitle) editYtTitle.value = activeSong.youtubeTitle || '';
+                if (editYtQuery) editYtQuery.value = activeSong.youtubeUrl;
+                const vId = extractYouTubeId(activeSong.youtubeUrl);
+                if (editThumb) editThumb.src = vId ? `https://img.youtube.com/vi/${vId}/mqdefault.jpg` : '';
+                if (editVidTitle) editVidTitle.innerText = activeSong.youtubeTitle || activeSong.title || 'Video de referencia';
+                if (editVidChannel) editVidChannel.innerText = 'YouTube';
+                if (editPreviewBox) editPreviewBox.classList.remove('hidden');
+            } else {
+                clearSelectedYouTube('edit');
+            }
 
             const toneSelect = document.getElementById('quick-modal-tone-select');
             let base = activeSong.currentToneInSession || activeSong.tone || 'C';
@@ -1872,14 +2002,17 @@
             const newTone = document.getElementById('quick-edit-tone').value;
             const newRhythm = document.getElementById('quick-edit-rhythm').value.trim();
             const newBpm = document.getElementById('quick-edit-bpm').value.trim();
-            const newYoutube = document.getElementById('quick-edit-youtube').value.trim();
             const newNotes = document.getElementById('quick-edit-notes').value.trim();
-            const updatedLyrics = document.getElementById('quick-lyrics-textarea').value;
+            let updatedLyrics = document.getElementById('quick-lyrics-textarea').value;
 
-            if (activeSong.tone !== newTone) {
-                activeSong.lyrics = transposeLyricsText(updatedLyrics, activeSong.tone, newTone);
-            } else {
-                activeSong.lyrics = updatedLyrics;
+            const editYtUrl = document.getElementById('edit-youtube-url');
+            const editYtTitle = document.getElementById('edit-youtube-title');
+            const newYoutubeUrl = editYtUrl ? editYtUrl.value.trim() : '';
+            const newYoutubeTitle = editYtTitle ? editYtTitle.value.trim() : '';
+
+            const oldTone = activeSong.tone || 'C';
+            if (oldTone !== newTone && updatedLyrics) {
+                updatedLyrics = transposeLyricsText(updatedLyrics, oldTone, newTone);
             }
 
             activeSong.title = newTitle;
@@ -1889,45 +2022,60 @@
             activeSong.currentToneInSession = newTone;
             activeSong.rhythm = newRhythm;
             activeSong.bpm = newBpm;
-            activeSong.youtube = newYoutube;
             activeSong.notes = newNotes;
+            activeSong.lyrics = updatedLyrics;
+            activeSong.youtubeUrl = newYoutubeUrl;
+            activeSong.youtubeTitle = newYoutubeTitle;
 
             const inCatalog = songs.find(s => s.id === activeSong.id);
             if (inCatalog) {
-                Object.assign(inCatalog, {title: newTitle, artist: newArtist, singer: newSinger, tone: newTone, rhythm: newRhythm, bpm: newBpm, youtube: newYoutube, notes: newNotes, lyrics: activeSong.lyrics});
+                Object.assign(inCatalog, { title: newTitle, artist: newArtist, singer: newSinger, tone: newTone, rhythm: newRhythm, bpm: newBpm, notes: newNotes, lyrics: updatedLyrics, youtubeUrl: newYoutubeUrl, youtubeTitle: newYoutubeTitle });
             }
 
             const activeSetlist = getActiveSetlist();
             const inSetlist = activeSetlist.songs.find(s => s.id === activeSong.id || s.uniqueKey === activeSong.uniqueKey);
             if (inSetlist) {
-                Object.assign(inSetlist, {title: newTitle, artist: newArtist, singer: newSinger, tone: newTone, rhythm: newRhythm, bpm: newBpm, youtube: newYoutube, notes: newNotes, lyrics: activeSong.lyrics});
+                Object.assign(inSetlist, { title: newTitle, artist: newArtist, singer: newSinger, tone: newTone, currentToneInSession: newTone, rhythm: newRhythm, bpm: newBpm, notes: newNotes, lyrics: updatedLyrics, youtubeUrl: newYoutubeUrl, youtubeTitle: newYoutubeTitle });
             }
 
             document.getElementById('view-title').innerText = activeSong.title;
             document.getElementById('view-artist').innerText = "Original: " + activeSong.artist;
             document.getElementById('view-singer-badge').innerText = "🎤 " + (activeSong.singer || 'Sin cantante');
             document.getElementById('view-rhythm-badge').innerText = activeSong.rhythm || '';
+            
             const toneLabel = document.getElementById('current-tone-label');
-            if (toneLabel) toneLabel.innerText = activeSong.tone;
-
-            // Actualizar la miniatura en vivo
-            const ytContainer = document.getElementById('view-youtube-preview-container');
-            const ytThumb = document.getElementById('view-youtube-thumb');
-            const ytEmbedLink = document.getElementById('view-youtube-embed-link');
-            if (activeSong.youtube && activeSong.youtube.trim()) {
-                ytThumb.src = `https://img.youtube.com/vi/${activeSong.youtube}/hqdefault.jpg`;
-                ytEmbedLink.href = `https://www.youtube.com/watch?v=${activeSong.youtube}`;
-                ytContainer.classList.remove('hidden');
-            } else {
-                ytContainer.classList.add('hidden');
+            if (toneLabel) {
+                toneLabel.innerText = activeSong.tone;
             }
 
             const notesBox = document.getElementById('view-notes-box');
-            if (activeSong.notes) {
+            if (activeSong.notes && activeSong.notes.trim()) {
                 document.getElementById('view-notes-text').innerText = activeSong.notes;
                 notesBox.classList.remove('hidden');
             } else {
                 notesBox.classList.add('hidden');
+            }
+
+            const ytMiniContainer = document.getElementById('viewer-youtube-mini');
+            const ytLink = document.getElementById('viewer-youtube-link');
+            const ytMiniThumb = document.getElementById('viewer-mini-thumb');
+            const ytMiniTitle = document.getElementById('viewer-mini-title');
+            const ytIframe = document.getElementById('viewer-youtube-iframe');
+            const ytEmbed = document.getElementById('viewer-youtube-embed-container');
+            const toggleBtnText = document.getElementById('toggle-embed-text');
+
+            if (ytIframe) ytIframe.src = "";
+            if (ytEmbed) ytEmbed.classList.add('hidden');
+            if (toggleBtnText) toggleBtnText.innerText = "Reproducir";
+
+            if (activeSong.youtubeUrl && activeSong.youtubeUrl.trim()) {
+                if (ytLink) ytLink.href = activeSong.youtubeUrl;
+                const vId = extractYouTubeId(activeSong.youtubeUrl);
+                if (ytMiniThumb && vId) ytMiniThumb.src = `https://img.youtube.com/vi/${vId}/mqdefault.jpg`;
+                if (ytMiniTitle) ytMiniTitle.innerText = activeSong.youtubeTitle || activeSong.title || 'Ver en YouTube ▶';
+                if (ytMiniContainer) ytMiniContainer.classList.remove('hidden');
+            } else {
+                if (ytMiniContainer) ytMiniContainer.classList.add('hidden');
             }
 
             transposeSteps = 0; 
@@ -1942,7 +2090,7 @@
 
             window.scrollTo({ top: savedWindowScroll, behavior: 'instant' });
 
-            showNotification("💾 ¡Canción editada por completo!");
+            showNotification("💾 ¡Canción editada y referencia de video guardada!");
             syncUploadToCloud(true);
         }
 
@@ -1952,7 +2100,7 @@
 
             const toast = document.createElement('div');
             toast.id = 'app-notification';
-            toast.className = "fixed bottom-5 left-1/2 -translate-x-1/2 bg-amber-500 text-slate-950 font-bold px-4 py-2 rounded-xl text-xs shadow-2xl z-50 flex items-center gap-2 animate-bounce";
+            toast.className = "fixed bottom-20 left-1/2 -translate-x-1/2 bg-amber-500 text-slate-950 font-bold px-4 py-2 rounded-xl text-xs shadow-2xl z-50 flex items-center gap-2 animate-bounce";
             toast.innerText = msg;
             document.body.appendChild(toast);
             setTimeout(() => toast.remove(), 2800);
@@ -2103,6 +2251,261 @@
             }
             const container = document.getElementById('visual-metronome');
             if (container) container.classList.add('hidden');
+        }
+
+        function extractYouTubeId(text) {
+            if (!text || typeof text !== 'string') return null;
+            const trimmed = text.trim();
+            if (/^[a-zA-Z0-9_-]{11}$/.test(trimmed)) {
+                return trimmed;
+            }
+            const match = trimmed.match(/(?:youtu\.be\/|youtube\.com\/(?:embed\/|v\/|watch\?v=|watch\?.+&v=|shorts\/))([a-zA-Z0-9_-]{11})/);
+            return match ? match[1] : null;
+        }
+
+        async function fetchYouTubeInfo(videoId) {
+            const defaultData = {
+                title: "Video de Referencia",
+                channel: "YouTube",
+                thumbnail: `https://img.youtube.com/vi/${videoId}/mqdefault.jpg`
+            };
+
+            try {
+                const res = await fetch(`https://www.youtube.com/oembed?url=https://www.youtube.com/watch?v=${videoId}&format=json`);
+                if (res.ok) {
+                    const data = await res.json();
+                    return {
+                        title: data.title || defaultData.title,
+                        channel: data.author_name || defaultData.channel,
+                        thumbnail: defaultData.thumbnail
+                    };
+                }
+            } catch (e) {}
+
+            try {
+                const res = await fetch(`https://noembed.com/embed?url=https://www.youtube.com/watch?v=${videoId}`);
+                if (res.ok) {
+                    const data = await res.json();
+                    return {
+                        title: data.title || defaultData.title,
+                        channel: data.author_name || defaultData.channel,
+                        thumbnail: defaultData.thumbnail
+                    };
+                }
+            } catch (e) {}
+
+            return defaultData;
+        }
+
+        async function handleYouTubeInput(context) {
+            const input = document.getElementById(`${context}-youtube-query`);
+            if (!input) return;
+            const val = input.value.trim();
+            const videoId = extractYouTubeId(val);
+            if (videoId) {
+                showNotification("🔍 Enlace detectado, cargando datos...");
+                const info = await fetchYouTubeInfo(videoId);
+                selectYouTubeVideo(context, videoId, info.thumbnail, info.title, info.channel);
+            }
+        }
+
+        async function pasteYouTubeLink(context) {
+            let text = "";
+            if (navigator.clipboard && navigator.clipboard.readText) {
+                try {
+                    text = await navigator.clipboard.readText();
+                } catch (e) {}
+            }
+            if (!text || !extractYouTubeId(text)) {
+                const manual = prompt("Pega aquí el enlace de YouTube o el ID del video:");
+                if (manual) text = manual;
+            }
+            if (!text || !text.trim()) return;
+
+            const queryInput = document.getElementById(`${context}-youtube-query`);
+            if (queryInput) queryInput.value = text.trim();
+
+            const videoId = extractYouTubeId(text);
+            if (videoId) {
+                showNotification("🔍 Cargando datos del video...");
+                const info = await fetchYouTubeInfo(videoId);
+                selectYouTubeVideo(context, videoId, info.thumbnail, info.title, info.channel);
+            } else {
+                searchYouTube(context);
+            }
+        }
+
+        async function searchYouTube(context = 'new') {
+            const isEdit = context === 'edit';
+            const queryInput = document.getElementById(`${context}-youtube-query`);
+            const titleInput = isEdit ? document.getElementById('quick-edit-title') : document.getElementById('new-title');
+            const artistInput = isEdit ? document.getElementById('quick-edit-artist') : document.getElementById('new-artist');
+            const resultsContainer = document.getElementById(`${context}-youtube-results-grid`);
+
+            let query = queryInput ? queryInput.value.trim() : '';
+            if (!query && titleInput) {
+                const title = titleInput.value.trim();
+                const artist = artistInput ? artistInput.value.trim() : '';
+                query = `${title} ${artist}`.trim();
+                if (queryInput) queryInput.value = query;
+            }
+
+            if (!query) {
+                showNotification("Escribe el nombre de la canción o pega un enlace de YouTube.");
+                return;
+            }
+
+            const directId = extractYouTubeId(query);
+            if (directId) {
+                showNotification("🔍 Cargando datos del video...");
+                const info = await fetchYouTubeInfo(directId);
+                selectYouTubeVideo(context, directId, info.thumbnail, info.title, info.channel);
+                return;
+            }
+
+            resultsContainer.innerHTML = `
+                <div class="col-span-full text-center text-xs text-amber-400 py-3 flex items-center justify-center gap-2">
+                    <span class="animate-spin text-sm">⏳</span> Buscando videos de "${query}"...
+                </div>
+            `;
+            resultsContainer.classList.remove('hidden');
+
+            let videos = [];
+
+            try {
+                const resp = await fetch(`/.netlify/functions/youtube-search?q=${encodeURIComponent(query)}`);
+                if (resp.ok) {
+                    const data = await resp.json();
+                    if (data && Array.isArray(data.items) && data.items.length > 0) {
+                        videos = data.items;
+                    }
+                }
+            } catch (e) {}
+
+            if (videos.length === 0) {
+                try {
+                    const proxyResp = await fetch(`https://api.allorigins.win/raw?url=` + encodeURIComponent(`https://www.youtube.com/results?search_query=${encodeURIComponent(query)}`));
+                    if (proxyResp.ok) {
+                        const html = await proxyResp.text();
+                        const jsonMatch = html.match(/var ytInitialData = ({.*?});<\/script>/);
+                        if (jsonMatch) {
+                            const data = JSON.parse(jsonMatch[1]);
+                            const contents = data.contents?.twoColumnSearchResultsRenderer?.primaryContents?.sectionListRenderer?.contents || [];
+                            for (const section of contents) {
+                                const items = section.itemSectionRenderer?.contents || [];
+                                for (const item of items) {
+                                    const vr = item.videoRenderer;
+                                    if (vr && vr.videoId) {
+                                        videos.push({
+                                            id: vr.videoId,
+                                            title: vr.title?.runs?.[0]?.text || 'Video de YouTube',
+                                            channel: vr.ownerText?.runs?.[0]?.text || '',
+                                            duration: vr.lengthText?.simpleText || '',
+                                            thumbnail: `https://img.youtube.com/vi/${vr.videoId}/mqdefault.jpg`
+                                        });
+                                        if (videos.length >= 6) break;
+                                    }
+                                }
+                                if (videos.length >= 6) break;
+                            }
+                        }
+                    }
+                } catch (e) {}
+            }
+
+            resultsContainer.innerHTML = "";
+
+            if (videos.length > 0) {
+                videos.forEach(v => {
+                    const card = document.createElement('div');
+                    card.className = "flex items-center gap-2.5 bg-slate-900 hover:bg-slate-800 border border-slate-800 hover:border-amber-500/60 p-2 rounded-xl cursor-pointer transition group";
+                    card.onclick = () => selectYouTubeVideo(context, v.id, v.thumbnail, v.title, v.channel);
+                    card.innerHTML = `
+                        <div class="relative w-16 h-10 shrink-0 rounded-lg overflow-hidden border border-slate-700">
+                            <img src="${v.thumbnail}" alt="Thumb" class="w-full h-full object-cover group-hover:scale-105 transition" loading="lazy">
+                            ${v.duration ? `<span class="absolute bottom-0.5 right-0.5 bg-black/80 text-[9px] font-mono font-bold text-white px-1 rounded">${v.duration}</span>` : ''}
+                        </div>
+                        <div class="min-w-0 flex-1">
+                            <h5 class="text-xs font-semibold text-white group-hover:text-amber-400 truncate">${v.title}</h5>
+                            <p class="text-[10px] text-slate-400 truncate">${v.channel || 'YouTube'}</p>
+                        </div>
+                    `;
+                    resultsContainer.appendChild(card);
+                });
+                return;
+            }
+
+            resultsContainer.innerHTML = `
+                <div class="col-span-full p-3 bg-slate-900/90 border border-amber-500/40 rounded-xl space-y-2 text-center">
+                    <p class="text-xs text-amber-300 font-semibold">🔍 ¿Deseas buscar "${query}" en YouTube?</p>
+                    <div class="flex items-center justify-center gap-2 flex-wrap">
+                        <a href="https://www.youtube.com/results?search_query=${encodeURIComponent(query)}" target="_blank" class="inline-flex items-center gap-1.5 bg-red-600 hover:bg-red-500 text-white font-bold text-xs px-3.5 py-2 rounded-xl transition shadow-md active:scale-95">
+                            <span>▶</span> Abrir YouTube y copiar enlace
+                        </a>
+                        <button type="button" onclick="pasteYouTubeLink('${context}')" class="bg-amber-500 hover:bg-amber-400 text-slate-950 font-bold text-xs px-3.5 py-2 rounded-xl transition shadow-md active:scale-95">
+                            📋 Pegar enlace copiado
+                        </button>
+                    </div>
+                    <p class="text-[11px] text-slate-400">En YouTube pulsa <em>Compartir → Copiar enlace</em> y luego pulsa el botón <strong>📋 Pegar enlace copiado</strong>.</p>
+                </div>
+            `;
+        }
+
+        function selectYouTubeVideo(context, videoId, thumbUrl, title, channel = '') {
+            const hiddenUrlInput = document.getElementById(`${context}-youtube-url`);
+            const hiddenTitleInput = document.getElementById(`${context}-youtube-title`);
+            const previewBox = document.getElementById(`${context}-youtube-selected-preview`);
+            const thumbImg = document.getElementById(`${context}-preview-thumbnail`);
+            const titleSpan = document.getElementById(`${context}-preview-vid-title`);
+            const channelSpan = document.getElementById(`${context}-preview-vid-channel`);
+            const resultsContainer = document.getElementById(`${context}-youtube-results-grid`);
+
+            const fullUrl = `https://www.youtube.com/watch?v=${videoId}`;
+            if (hiddenUrlInput) hiddenUrlInput.value = fullUrl;
+            if (hiddenTitleInput) hiddenTitleInput.value = title || 'Video de Referencia';
+
+            if (thumbImg) thumbImg.src = thumbUrl || `https://img.youtube.com/vi/${videoId}/mqdefault.jpg`;
+            if (titleSpan) titleSpan.innerText = title || 'Video seleccionado';
+            if (channelSpan) channelSpan.innerText = channel || 'YouTube';
+
+            if (previewBox) previewBox.classList.remove('hidden');
+            if (resultsContainer) resultsContainer.classList.add('hidden');
+
+            showNotification("✅ ¡Video de referencia seleccionado!");
+        }
+
+        function clearSelectedYouTube(context) {
+            const hiddenUrlInput = document.getElementById(`${context}-youtube-url`);
+            const hiddenTitleInput = document.getElementById(`${context}-youtube-title`);
+            const previewBox = document.getElementById(`${context}-youtube-selected-preview`);
+            const queryInput = document.getElementById(`${context}-youtube-query`);
+
+            if (hiddenUrlInput) hiddenUrlInput.value = "";
+            if (hiddenTitleInput) hiddenTitleInput.value = "";
+            if (queryInput) queryInput.value = "";
+            if (previewBox) previewBox.classList.add('hidden');
+        }
+
+        function toggleViewerEmbeddedVideo() {
+            if (!activeSong || !activeSong.youtubeUrl) return;
+            const vId = extractYouTubeId(activeSong.youtubeUrl);
+            if (!vId) return;
+
+            const ytEmbedContainer = document.getElementById('viewer-youtube-embed-container');
+            const ytIframe = document.getElementById('viewer-youtube-iframe');
+            const toggleBtnText = document.getElementById('toggle-embed-text');
+
+            if (!ytEmbedContainer || !ytIframe) return;
+
+            if (ytEmbedContainer.classList.contains('hidden')) {
+                ytIframe.src = `https://www.youtube-nocookie.com/embed/${vId}?autoplay=1`;
+                ytEmbedContainer.classList.remove('hidden');
+                if (toggleBtnText) toggleBtnText.innerText = "Ocultar video";
+            } else {
+                ytIframe.src = "";
+                ytEmbedContainer.classList.add('hidden');
+                if (toggleBtnText) toggleBtnText.innerText = "Reproducir";
+            }
         }
     </script>
 </body>
