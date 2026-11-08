@@ -221,18 +221,19 @@
 
                 <div id="chord-chart-container" class="bg-slate-900 border border-slate-800 rounded-2xl p-3.5 md:p-5 shadow-inner overflow-x-auto min-h-[300px]"></div>
 
-                <div id="stage-nav-bar" class="hidden sticky bottom-16 z-40 bg-slate-900/95 backdrop-blur-md border border-slate-700/80 p-2.5 rounded-2xl shadow-2xl flex items-center justify-between gap-2">
-                    <button id="nav-prev-btn" onclick="navigateSetlist(-1)" class="flex-1 bg-slate-800 hover:bg-slate-700 disabled:opacity-30 disabled:pointer-events-none text-slate-200 py-2.5 px-3 rounded-xl text-xs font-bold transition flex items-center justify-center gap-1">
-                        <span>◀</span>
-                        <span class="truncate" id="nav-prev-text">Anterior</span>
+                <!-- Barra de navegación inferior en vivo con títulos abreviados y seguros -->
+                <div id="stage-nav-bar" class="hidden sticky bottom-16 z-40 bg-slate-900/95 backdrop-blur-md border border-slate-700/80 p-2.5 rounded-2xl shadow-2xl flex items-center justify-between gap-2 max-w-full overflow-hidden">
+                    <button id="nav-prev-btn" onclick="navigateSetlist(-1)" class="flex-1 min-w-0 bg-slate-800 hover:bg-slate-700 disabled:opacity-30 disabled:pointer-events-none text-slate-200 py-2.5 px-3 rounded-xl text-xs font-bold transition flex items-center justify-center gap-1">
+                        <span class="shrink-0">◀</span>
+                        <span class="truncate max-w-[90px] xs:max-w-[130px] sm:max-w-[180px]" id="nav-prev-text">Anterior</span>
                     </button>
-                    <div class="px-2 text-center select-none">
+                    <div class="px-2 text-center select-none shrink-0">
                         <span id="nav-counter" class="text-xs font-mono font-bold text-amber-400 block">1 / 1</span>
                         <span class="text-[9px] uppercase tracking-wider text-slate-400 font-semibold block">Pauta</span>
                     </div>
-                    <button id="nav-next-btn" onclick="navigateSetlist(1)" class="flex-1 bg-amber-500 hover:bg-amber-400 disabled:opacity-30 disabled:pointer-events-none text-slate-950 py-2.5 px-3 rounded-xl text-xs font-black transition flex items-center justify-center gap-1 shadow-lg shadow-amber-500/20">
-                        <span class="truncate" id="nav-next-text">Siguiente</span>
-                        <span>▶</span>
+                    <button id="nav-next-btn" onclick="navigateSetlist(1)" class="flex-1 min-w-0 bg-amber-500 hover:bg-amber-400 disabled:opacity-30 disabled:pointer-events-none text-slate-950 py-2.5 px-3 rounded-xl text-xs font-black transition flex items-center justify-center gap-1 shadow-lg shadow-amber-500/20">
+                        <span class="truncate max-w-[90px] xs:max-w-[130px] sm:max-w-[180px]" id="nav-next-text">Siguiente</span>
+                        <span class="shrink-0">▶</span>
                     </button>
                 </div>
             </div>
@@ -346,8 +347,8 @@
                             <select id="new-rhythm" class="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-sm text-white focus:outline-none focus:border-amber-500">
                                 <option value="Rápida">⚡ Rápida</option>
                                 <option value="Lenta">🐢 Lenta</option>
-                            </select>
-                        </div>  
+                            </select>  
+                        </div>
                     </div>
 
                     <div>
@@ -708,7 +709,7 @@
                 let V7 = chromaticScale[(idx + 7) % 12] + "7";
                 let vi = chromaticScale[(idx + 9) % 12] + "m";
                 let slash1 = `${clean}/${chromaticScale[(idx + 4) % 12]}`; 
-                let slash2 = `${V}/${chromaticScale[(idx + 11) % 12]}`;   
+                let slash2 = `${V}/${chromaticScale[(idx + 11) % 12]}`;    
                 return [I, ii, iii, IV, V, V7, vi, slash1, slash2];
             }
         }
@@ -892,7 +893,6 @@
             document.getElementById('view-setlist').classList.add('hidden');
             document.getElementById('view-add').classList.add('hidden');
 
-            // Actualizar estado visual de los botones de la barra inferior
             const setlistNavBtn = document.querySelector('button[onclick="switchTab(\'setlist\')"]');
             const libraryNavBtn = document.querySelector('button[onclick="switchTab(\'library\')"]');
             const addNavBtn = document.querySelector('button[onclick="switchTab(\'add\')"]');
@@ -1724,7 +1724,7 @@
             }
 
             text += `\n🤘 ¡A estudiar y repasar los tonos, nos vemos en el ensayo! 🎶\n`;
-            text += `📱 Entra a la app aquí: https://dobleaa.netlify.app/`;
+            text += `📱 Entra a la app aquí: https://doblea.vercel.app/`;
             return text;
         }
 
