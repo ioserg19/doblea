@@ -534,22 +534,37 @@
         const bandaRef = db.ref('ensayos_banda');
 
         let isSyncingFromCloud = false; 
+        let hasLoadedInitialData = false;
         let latestNotificationData = null;
 
-        let songs = JSON.parse(localStorage.getItem('group_songs')) || [
-             ];
+        let songs = [];
+        try {
+            const cachedSongs = localStorage.getItem('group_songs');
+            if (cachedSongs) songs = JSON.parse(cachedSongs) || [];
+        } catch(e) { songs = []; }
 
-        let setlists = JSON.parse(localStorage.getItem('group_setlists')) || [
-            {
-                id: "setlist_default",
-                name: "Pauta Ensayo Principal",
-                date: new Date().toISOString().slice(0, 10),
-                songs: JSON.parse(localStorage.getItem('group_setlist')) || [
-                    { ...songs[0], currentToneInSession: songs[0].tone, uniqueKey: 101 },
-                    { ...songs[1], currentToneInSession: songs[1].tone, uniqueKey: 102 }
-                ]
-            }
-        ];
+        let setlists = [];
+        try {
+            const cachedSetlists = localStorage.getItem('group_setlists');
+            if (cachedSetlists) setlists = JSON.parse(cachedSetlists) || [];
+        } catch(e) { setlists = []; }
+
+        if (!Array.isArray(setlists) || setlists.length === 0) {
+            let initialSongsInSetlist = [];
+            try {
+                const cachedSetlistSongs = localStorage.getItem('group_setlist');
+                if (cachedSetlistSongs) initialSongsInSetlist = JSON.parse(cachedSetlistSongs) || [];
+            } catch(e) {}
+
+            setlists = [
+                {
+                    id: "setlist_default",
+                    name: "Pauta Ensayo Principal",
+                    date: new Date().toISOString().slice(0, 10),
+                    songs: initialSongsInSetlist
+                }
+            ];
+        }
 
         let activeSetlistId = localStorage.getItem('group_active_setlist_id') || (setlists[0] ? setlists[0].id : null);
 
@@ -565,45 +580,118 @@
         const chromaticScale = ["C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B"];
         const flatToSharpMap = { "DB": "C#", "EB": "D#", "GB": "F#", "AB": "G#", "BB": "A#" };
 
-        bandaRef.on('value', (snapshot) => {
-            const data = snapshot.val();
-            if (data) {
-                isSyncingFromCloud = true; 
-                songs = data.songs || [];
-                setlists = data.setlists || [];
-                
+        // Procesa y renderiza datos provenientes de Firebase
+        function applyCloudData(data) {
+            if (!data) return;
+            isSyncingFromCloud = true; 
+            hasLoadedInitialData = true;
+
+            if (Array.isArray(data.songs)) {
+                songs = data.songs;
+            }
+            if (Array.isArray(data.setlists)) {
+                setlists = data.setlists;
                 setlists.forEach(s => {
                     if (!s.songs) s.songs = [];
                 });
+            }
 
-                if (data.activeSetlistId) activeSetlistId = data.activeSetlistId;
-                if (data.lastNotification) latestNotificationData = data.lastNotification;
-                
-                localStorage.setItem('group_songs', JSON.stringify(songs));
-                localStorage.setItem('group_setlists', JSON.stringify(setlists));
-                localStorage.setItem('group_active_setlist_id', activeSetlistId);
-                const active = getActiveSetlist();
-                localStorage.setItem('group_setlist', JSON.stringify(active.songs));
-                
-                const countBadge = document.getElementById('setlist-count');
-                if(countBadge) countBadge.innerText = active.songs.length;
+            if (data.activeSetlistId) activeSetlistId = data.activeSetlistId;
+            if (data.lastNotification) latestNotificationData = data.lastNotification;
+            
+            saveData();
+            
+            renderSingerChips();
+            renderLibrary(songs);
+            renderSetlistSelector();
+            renderSetlist();
+            updateCloudIndicator(true, "Online");
 
-                renderSingerChips();
-                renderLibrary(songs);
-                renderSetlistSelector();
-                renderSetlist();
-                updateCloudIndicator(true);
+            if (latestNotificationData) {
+                checkNewSetlistNotification(latestNotificationData);
+            }
+            
+            setTimeout(() => { isSyncingFromCloud = false; }, 500);
+        }
 
-                if (latestNotificationData) {
-                    checkNewSetlistNotification(latestNotificationData);
+        // 1. Escucha en tiempo real (Firebase WebSocket)
+        bandaRef.on('value', (snapshot) => {
+            const data = snapshot.val();
+            if (data) {
+                applyCloudData(data);
+            }
+        }, (err) => {
+            console.warn("Firebase onValue aviso:", err);
+            updateCloudIndicator(false, "Modo Local");
+            fetchCloudDataREST();
+        });
+
+        // 2. Forzar descarga inmediata con .once('value')
+        bandaRef.once('value').then((snapshot) => {
+            const data = snapshot.val();
+            if (data) {
+                applyCloudData(data);
+            }
+        }).catch((err) => {
+            console.warn("Fallo lectura inicial SDK:", err);
+            fetchCloudDataREST();
+        });
+
+        // 3. Descarga forzada de alta fiabilidad vía REST API (HTTPS estándar)
+        // Garantiza que en cualquier teléfono nuevo o red móvil se descarguen los datos de inmediato
+        async function fetchCloudDataREST() {
+            try {
+                const res = await fetch("https://ensayosapp-927a1-default-rtdb.firebaseio.com/ensayos_banda.json?t=" + Date.now());
+                if (res.ok) {
+                    const data = await res.json();
+                    if (data && (data.songs || data.setlists)) {
+                        applyCloudData(data);
+                        return true;
+                    }
                 }
-                
-                setTimeout(() => { isSyncingFromCloud = false; }, 500);
+            } catch (e) {
+                console.warn("Error REST fallback:", e);
+            }
+            return false;
+        }
+
+        // Si el dispositivo no tiene repertorio local, forzar descarga REST de inmediato sin esperar
+        if (songs.length === 0) {
+            fetchCloudDataREST();
+        }
+
+        // Monitoreo del estado de conexión de Firebase
+        db.ref('.info/connected').on('value', (snap) => {
+            if (snap.val() === true) {
+                updateCloudIndicator(true, "Online");
+            } else if (!hasLoadedInitialData && songs.length === 0) {
+                updateCloudIndicator(false, "Conectando...");
+            } else {
+                updateCloudIndicator(false, "Modo Local");
+            }
+        });
+
+        // Reconexión y descarga forzada al volver la red o al desbloquear la pantalla del teléfono
+        window.addEventListener('online', () => {
+            db.goOnline();
+            forceCloudDownload();
+        });
+
+        document.addEventListener('visibilitychange', () => {
+            if (document.visibilityState === 'visible') {
+                db.goOnline();
+                forceCloudDownload();
             }
         });
 
         async function syncUploadToCloud(silent = true) {
             if (isSyncingFromCloud) return; 
+
+            // Evitar sobreescribir la nube si aún no se han recibido los datos iniciales y la lista local está vacía
+            if (!hasLoadedInitialData && songs.length === 0) {
+                console.warn("Subida pausada: esperando sincronización inicial.");
+                return;
+            }
 
             const payload = {
                 updatedAt: new Date().toISOString(),
@@ -615,10 +703,11 @@
 
             try {
                 await bandaRef.set(payload);
-                updateCloudIndicator(true);
+                updateCloudIndicator(true, "Online");
                 if (!silent) showNotification("⚡ ¡Online!");
             } catch (err) {
-                updateCloudIndicator(false);
+                console.error("Error al sincronizar con Firebase:", err);
+                updateCloudIndicator(false, "Modo Local");
             }
         }
 
@@ -640,24 +729,51 @@
             localStorage.setItem('group_setlists', JSON.stringify(setlists));
             localStorage.setItem('group_active_setlist_id', activeSetlistId);
             localStorage.setItem('group_setlist', JSON.stringify(active.songs));
-            document.getElementById('setlist-count').innerText = active.songs.length;
+            const countBadge = document.getElementById('setlist-count');
+            if (countBadge) countBadge.innerText = active.songs.length;
         }
 
-        function updateCloudIndicator(online = true) {
+        function updateCloudIndicator(online = true, customText = null) {
             const dot = document.getElementById('cloud-indicator-dot');
             const text = document.getElementById('cloud-indicator-text');
             if (!dot || !text) return;
             if (online) {
                 dot.className = "w-2 h-2 rounded-full bg-emerald-400 shadow-sm shadow-emerald-400";
-                text.innerText = "Online";
+                text.innerText = customText || "Online";
             } else {
                 dot.className = "w-2 h-2 rounded-full bg-amber-400";
-                text.innerText = "Modo Local";
+                text.innerText = customText || "Modo Local";
             }
         }
 
-        function manualCloudSync() {
-            showNotification("⚡ Sistema Online");
+        async function manualCloudSync() {
+            showNotification("🔄 Sincronizando repertorio...");
+            updateCloudIndicator(false, "Sincronizando...");
+            await forceCloudDownload(true);
+        }
+
+        async function forceCloudDownload(notifyOnSuccess = false) {
+            try {
+                db.goOnline();
+                const snapshot = await bandaRef.once('value');
+                const data = snapshot.val();
+                if (data && (data.songs || data.setlists)) {
+                    applyCloudData(data);
+                    if (notifyOnSuccess) showNotification("⚡ ¡Repertorio sincronizado!");
+                    return true;
+                }
+            } catch (e) {
+                console.warn("Fallo bandaRef.once:", e);
+            }
+
+            const ok = await fetchCloudDataREST();
+            if (ok) {
+                if (notifyOnSuccess) showNotification("⚡ ¡Repertorio sincronizado!");
+                return true;
+            } else if (notifyOnSuccess) {
+                showNotification("⚠️ No se pudo conectar a la nube");
+            }
+            return false;
         }
 
         function getHarmonicCircle(tone) {
@@ -943,7 +1059,11 @@
             const container = document.getElementById('songs-container');
             container.innerHTML = "";
             if (list.length === 0) {
-                container.innerHTML = `<div class="text-center text-xs text-slate-500 py-10 bg-slate-900/50 border border-dashed border-slate-800 rounded-2xl">No se encontraron canciones.</div>`;
+                if (!hasLoadedInitialData) {
+                    container.innerHTML = `<div class="text-center text-xs text-amber-400 py-10 bg-slate-900/50 border border-dashed border-amber-500/30 rounded-2xl flex flex-col items-center justify-center gap-2"><span class="animate-spin text-base">⏳</span> Descargando canciones desde la nube...</div>`;
+                } else {
+                    container.innerHTML = `<div class="text-center text-xs text-slate-500 py-10 bg-slate-900/50 border border-dashed border-slate-800 rounded-2xl">No se encontraron canciones.</div>`;
+                }
                 return;
             }
             list.forEach(song => {
@@ -1491,7 +1611,11 @@
             const activeSetlist = getActiveSetlist();
 
             if (activeSetlist.songs.length === 0) {
-                container.innerHTML = `<div class="text-center text-xs text-slate-500 py-10 bg-slate-900/50 border border-dashed border-slate-800 rounded-2xl">La pauta "${activeSetlist.name}" no tiene canciones aún. Ve a Canciones y pulsa ➕ para añadir.</div>`;
+                if (!hasLoadedInitialData) {
+                    container.innerHTML = `<div class="text-center text-xs text-amber-400 py-10 bg-slate-900/50 border border-dashed border-amber-500/30 rounded-2xl flex flex-col items-center justify-center gap-2"><span class="animate-spin text-base">⏳</span> Sincronizando pauta desde la nube...</div>`;
+                } else {
+                    container.innerHTML = `<div class="text-center text-xs text-slate-500 py-10 bg-slate-900/50 border border-dashed border-slate-800 rounded-2xl">La pauta "${activeSetlist.name}" no tiene canciones aún. Ve a Canciones y pulsa ➕ para añadir.</div>`;
+                }
                 return;
             }
 
@@ -2351,7 +2475,7 @@
             let videos = [];
 
             try {
-                const resp = await fetch(`/.netlify/functions/youtube-search?q=${encodeURIComponent(query)}`);
+                const resp = await fetch(`/api/youtube-search?q=${encodeURIComponent(query)}`);
                 if (resp.ok) {
                     const data = await resp.json();
                     if (data && Array.isArray(data.items) && data.items.length > 0) {

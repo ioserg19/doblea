@@ -1,4 +1,4 @@
-const CACHE_NAME = 'ensayos-app-v2';
+const CACHE_NAME = 'ensayos-app-v3';
 const ASSETS_TO_CACHE = [
   './',
   './index.html',
