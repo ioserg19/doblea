@@ -64,9 +64,15 @@
             <button id="btn-install" class="hidden px-2.5 py-1.5 rounded-lg text-xs font-bold bg-emerald-500 text-slate-950 hover:bg-emerald-400 transition shadow-md shadow-emerald-500/20 active:scale-95">
                 📱 Instalar
             </button>
-            <button onclick="manualCloudSync()" title="Sincronizado automáticamente para la banda" class="px-2.5 py-1.5 rounded-lg text-xs bg-slate-800 hover:bg-slate-700 text-slate-300 flex items-center gap-1.5 transition">
-                <span id="cloud-indicator-dot" class="w-2 h-2 rounded-full bg-emerald-400 shadow-sm shadow-emerald-400"></span>
-                <span class="text-[11px] font-semibold text-slate-300" id="cloud-indicator-text">Online</span>
+            <button onclick="manualCloudSync()" title="Sincronizado automáticamente para la banda (Pulsa para forzar)" class="px-2.5 py-1.5 rounded-lg text-xs bg-slate-800 hover:bg-slate-700 text-slate-300 flex items-center gap-2 transition border border-slate-700/60 shadow-sm active:scale-95">
+                <div class="flex items-center gap-1.5">
+                    <span id="cloud-indicator-dot" class="w-2 h-2 rounded-full bg-emerald-400 shadow-sm shadow-emerald-400"></span>
+                    <span class="text-[11px] font-semibold text-slate-300" id="cloud-indicator-text">Online</span>
+                </div>
+                <div id="users-online-badge" class="flex items-center gap-1 pl-1.5 border-l border-slate-700 text-slate-400" title="Personas conectadas a la app">
+                    <span class="text-xs">👥</span>
+                    <span id="users-online-count" class="text-[11px] font-bold text-amber-400 font-mono">1</span>
+                </div>
             </button>
         </div>
     </header>
@@ -660,14 +666,55 @@
             fetchCloudDataREST();
         }
 
-        // Monitoreo del estado de conexión de Firebase
+        // Monitoreo del estado de conexión y presencia de músicos en tiempo real
+        const presenceRef = db.ref('presencia_banda');
+        let myPresenceRef = null;
+
         db.ref('.info/connected').on('value', (snap) => {
             if (snap.val() === true) {
                 updateCloudIndicator(true, "Online");
-            } else if (!hasLoadedInitialData && songs.length === 0) {
-                updateCloudIndicator(false, "Conectando...");
+
+                // Registrar este dispositivo como usuario conectado
+                try {
+                    if (!myPresenceRef) {
+                        myPresenceRef = presenceRef.push();
+                    }
+                    // Eliminar automáticamente el nodo al desconectarse o cerrar la app
+                    myPresenceRef.onDisconnect().remove();
+                    myPresenceRef.set({
+                        online: true,
+                        joinedAt: firebase.database.ServerValue.TIMESTAMP
+                    });
+                } catch(e) {}
             } else {
-                updateCloudIndicator(false, "Modo Local");
+                if (!hasLoadedInitialData && songs.length === 0) {
+                    updateCloudIndicator(false, "Conectando...");
+                } else {
+                    updateCloudIndicator(false, "Modo Local");
+                }
+            }
+        });
+
+        // Escucha en tiempo real de cuántas personas están conectadas
+        presenceRef.on('value', (snapshot) => {
+            const data = snapshot.val();
+            let count = data ? Object.keys(data).length : 1;
+            if (count < 1) count = 1;
+            updateOnlineUsersCount(count);
+        }, () => {
+            updateOnlineUsersCount(1);
+        });
+
+        function updateOnlineUsersCount(count) {
+            const countEl = document.getElementById('users-online-count');
+            if (countEl) {
+                countEl.innerText = count;
+            }
+        }
+
+        window.addEventListener('beforeunload', () => {
+            if (myPresenceRef) {
+                myPresenceRef.remove();
             }
         });
 
