@@ -12,6 +12,7 @@
     <meta name="apple-mobile-web-app-title" content="Doble A">
     <meta name="theme-color" content="#0f172a">
     <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/sortablejs@1.15.2/Sortable.min.js"></script>
     <style>
         .chord-block {
             display: inline-flex;
@@ -396,7 +397,7 @@
         </button>
         <button onclick="switchTab('library')" id="btn-library" class="flex flex-col items-center gap-0.5 text-amber-400 transition">
             <span class="text-lg">🎵</span>
-            <span class="text-[10px] font-semibold tracking-wider uppercase">Canciones</span>
+            <span class="text-[10px] font-semibold tracking-wider uppercase">Canciones (<span id="songs-count">0</span>)</span>
         </button>
         <button onclick="switchTab('add')" id="btn-add" class="flex flex-col items-center gap-0.5 text-slate-400 hover:text-amber-400 transition">
             <span class="text-lg">➕</span>
@@ -778,6 +779,8 @@
             localStorage.setItem('group_setlist', JSON.stringify(active.songs));
             const countBadge = document.getElementById('setlist-count');
             if (countBadge) countBadge.innerText = active.songs.length;
+            const songsBadge = document.getElementById('songs-count');
+            if (songsBadge) songsBadge.innerText = songs.length;
         }
 
         function updateCloudIndicator(online = true, customText = null) {
@@ -1306,10 +1309,10 @@
             }
         }
 
-        function startSetlistShow() {
+        async function startSetlistShow() {
             const activeSetlist = getActiveSetlist();
             if (activeSetlist.songs.length === 0) {
-                alert("La pauta de ensayo está vacía. Añade canciones desde la librería.");
+                await appAlert("La pauta de ensayo está vacía. Añade canciones desde la librería.", "Pauta Vacía");
                 return;
             }
             openSongViewer(activeSetlist.songs[0], 'setlist', 0);
@@ -1568,8 +1571,8 @@
             showNotification(`Pauta cambiada a "${getActiveSetlist().name}"`);
         }
 
-        function createNewSetlist() {
-            const name = prompt("Nombre de la nueva pauta de ensayo:", `Pauta Ensayo ${setlists.length + 1}`);
+        async function createNewSetlist() {
+            const name = await appPrompt('Nombre de la nueva pauta de ensayo:', `Pauta Ensayo ${setlists.length + 1}`, '➕ Nueva Pauta');
             if (!name || !name.trim()) return;
             const newSetlist = {
                 id: "setlist_" + Date.now(),
@@ -1586,9 +1589,9 @@
             syncUploadToCloud(true);
         }
 
-        function renameCurrentSetlist() {
+        async function renameCurrentSetlist() {
             const active = getActiveSetlist();
-            const newName = prompt(`Nuevo nombre para "${active.name}":`, active.name);
+            const newName = await appPrompt(`Nuevo nombre para la pauta:`, active.name, '✏️ Renombrar Pauta');
             if (!newName || !newName.trim()) return;
             active.name = newName.trim();
             saveData();
@@ -1615,10 +1618,11 @@
             syncUploadToCloud(true);
         }
 
-        function deleteCurrentSetlist() {
+        async function deleteCurrentSetlist() {
             const active = getActiveSetlist();
             if (setlists.length <= 1) {
-                if (confirm(`¿Vaciar todas las canciones de "${active.name}"?`)) {
+                const conf = await appConfirm(`¿Vaciar todas las canciones de "${active.name}"?`, 'Vaciar Pauta');
+                if (conf) {
                     active.songs = [];
                     saveData();
                     renderSetlist();
@@ -1626,7 +1630,8 @@
                 }
                 return;
             }
-            if (confirm(`¿Estás seguro de eliminar por completo la pauta "${active.name}"?`)) {
+            const ok = await appConfirm(`¿Estás seguro de eliminar por completo la pauta "${active.name}"?`, '🗑️ Eliminar Pauta');
+            if (ok) {
                 setlists = setlists.filter(s => s.id !== active.id);
                 activeSetlistId = setlists[0].id;
                 saveData();
@@ -1655,6 +1660,7 @@
         function renderSetlist() {
             const container = document.getElementById('setlist-container');
             container.innerHTML = "";
+            if (window._setlistSortable) { try { window._setlistSortable.destroy(); } catch(e){} window._setlistSortable = null; }
             const activeSetlist = getActiveSetlist();
 
             if (activeSetlist.songs.length === 0) {
@@ -1685,6 +1691,12 @@
                 container.appendChild(playlistBanner);
             }
 
+            // Wrapper exclusivo para SortableJS (excluye el banner de playlist)
+            const songsList = document.createElement('div');
+            songsList.id = 'setlist-songs-list';
+            songsList.className = 'space-y-2';
+            container.appendChild(songsList);
+
             activeSetlist.songs.forEach((song, index) => {
                 const ytUrl = song.youtubeUrl || (songs.find(s => s.id === song.id)?.youtubeUrl);
                 const hasYt = !!(ytUrl && extractYouTubeId(ytUrl));
@@ -1693,6 +1705,7 @@
                 card.className = "bg-slate-900 border border-slate-800 p-3 rounded-xl flex justify-between items-center hover:border-slate-700 transition";
                 card.innerHTML = `
                     <div class="flex items-center gap-2.5 min-w-0 pr-2">
+                        <span class="drag-handle cursor-grab active:cursor-grabbing text-slate-600 hover:text-amber-500 text-lg select-none shrink-0 leading-none" title="Arrastrar para reordenar">⠿</span>
                         <span class="w-6 text-center text-xs font-black text-amber-500 font-mono shrink-0">#${index + 1}</span>
                         <div class="min-w-0 truncate">
                             <h4 class="font-bold text-white text-sm hover:text-amber-400 cursor-pointer truncate" onclick="openSongViewer(getActiveSetlist().songs[${index}], 'setlist', ${index})">${song.title}</h4>
@@ -1710,8 +1723,28 @@
                         <button onclick="removeFromSetlist(${index})" title="Quitar de la lista" class="text-slate-500 hover:text-red-400 text-xs p-1.5">✕</button>
                     </div>
                 `;
-                container.appendChild(card);
+                songsList.appendChild(card);
             });
+
+            // ── Inicializar Drag & Drop con SortableJS ──
+            if (typeof Sortable !== 'undefined') {
+                window._setlistSortable = Sortable.create(songsList, {
+                    animation: 150,
+                    ghostClass: 'opacity-30',
+                    chosenClass: 'ring-2 ring-amber-500/40 scale-[1.01]',
+                    handle: '.drag-handle',
+                    onEnd: function(evt) {
+                        if (evt.oldIndex === evt.newIndex) return;
+                        const activeSetlist = getActiveSetlist();
+                        const movedItem = activeSetlist.songs.splice(evt.oldIndex, 1)[0];
+                        activeSetlist.songs.splice(evt.newIndex, 0, movedItem);
+                        saveData();
+                        renderSetlistSelector();
+                        syncUploadToCloud(true);
+                        renderSetlist(); // re-render para actualizar índices y badges
+                    }
+                });
+            }
         }
 
         function moveSetlistItem(index, direction) {
@@ -1738,11 +1771,12 @@
         async function publishAndNotifySetlist() {
             const active = getActiveSetlist();
             if (active.songs.length === 0) {
-                alert("La pauta de ensayo está vacía. Añade canciones antes de notificar.");
+                await appAlert("La pauta de ensayo está vacía. Añade canciones antes de notificar.", "Pauta Vacía");
                 return;
             }
 
-            if (!confirm(`¿Notificar a la aplicación de todos los integrantes que la pauta "${active.name}" (${active.songs.length} canciones) ya está lista?`)) {
+            const ok = await appConfirm(`¿Notificar a la aplicación de todos los integrantes que la pauta "${active.name}" (${active.songs.length} canciones) ya está lista?`, "📢 Notificar Pauta");
+            if (!ok) {
                 return;
             }
 
@@ -1877,10 +1911,10 @@
             return text;
         }
 
-        function notifyGroupWhatsApp() {
+        async function notifyGroupWhatsApp() {
             const active = getActiveSetlist();
             if (active.songs.length === 0) {
-                alert("La pauta de ensayo está vacía. Añade canciones antes de notificar.");
+                await appAlert("La pauta de ensayo está vacía. Añade canciones antes de notificar.", "Pauta Vacía");
                 return;
             }
 
@@ -1902,7 +1936,7 @@
             navigator.clipboard.writeText(message).then(() => {
                 showNotification("📋 ¡Pauta copiada al portapapeles! Lista para pegar en el grupo.");
             }).catch(() => {
-                alert(message);
+                appAlert(message, "Pauta para compartir");
             });
         }
 
@@ -1941,22 +1975,28 @@
             syncUploadToCloud(true);
         }
 
-        function duplicateForAnotherSinger() {
+        async function duplicateForAnotherSinger() {
             if (!activeSong) return;
-            const otherSinger = prompt("¿Qué vocalista cantará esta nueva versión?", "Nuevo Vocalista");
-            if (!otherSinger) return;
-            const newTone = prompt("¿En qué tono la cantará?", activeSong.tone);
-            if (!newTone) return;
+            const res = await appDoublePrompt(
+                '👥 Clonar para otro Vocalista',
+                'Nombre del nuevo vocalista:',
+                'Nuevo Vocalista',
+                'Tono para este vocalista:',
+                activeSong.tone || 'C'
+            );
+            if (!res || !res.val1 || !res.val1.trim()) return;
 
-            let finalNewTone = newTone.toUpperCase();
-            let clonedLyrics = transposeLyricsText(activeSong.lyrics, activeSong.tone, finalNewTone);
+            const otherSinger = res.val1.trim();
+            const newTone = (res.val2 || activeSong.tone || 'C').trim().toUpperCase();
+
+            let clonedLyrics = transposeLyricsText(activeSong.lyrics, activeSong.tone, newTone);
 
             const clonedSong = {
                 id: Date.now(),
                 title: activeSong.title,
                 artist: activeSong.artist,
                 singer: otherSinger,
-                tone: finalNewTone,
+                tone: newTone,
                 rhythm: activeSong.rhythm,
                 bpm: activeSong.bpm || '',
                 notes: activeSong.notes || '',
@@ -1973,8 +2013,9 @@
             syncUploadToCloud(true);
         }
 
-        function deleteSong(id) {
-            if (confirm("¿Estás seguro de eliminar esta canción de la librería?")) {
+        async function deleteSong(id) {
+            const ok = await appConfirm("¿Estás seguro de eliminar esta canción de la librería?", "🗑️ Eliminar Canción");
+            if (ok) {
                 songs = songs.filter(s => s.id !== id);
                 saveData();
                 renderSingerChips();
@@ -2051,7 +2092,7 @@
             const file = event.target.files[0];
             if (!file) return;
             const reader = new FileReader();
-            reader.onload = function(e) {
+            reader.onload = async function(e) {
                 try {
                     const parsed = JSON.parse(e.target.result);
                     if (Array.isArray(parsed.songs)) {
@@ -2066,13 +2107,13 @@
                         renderSetlistSelector();
                         renderSetlist();
                         syncUploadToCloud(true);
-                        alert("¡Repertorio y pautas restaurados con éxito!");
+                        await appAlert("¡Repertorio y pautas restaurados con éxito!", "📦 Restauración");
                         toggleBackupMenu();
                     } else {
-                        alert("Formato de archivo no válido.");
+                        await appAlert("Formato de archivo no válido.", "Error");
                     }
                 } catch (err) {
-                    alert("Error al leer el archivo JSON.");
+                    await appAlert("Error al leer el archivo JSON.", "Error");
                 }
             };
             reader.readAsText(file);
@@ -2253,6 +2294,129 @@
             toast.innerText = msg;
             document.body.appendChild(toast);
             setTimeout(() => toast.remove(), 2800);
+        }
+
+        // ===================== SISTEMA DE MODALES MODERNOS =====================
+        function openAppModal({ title = '', message = '', showCancel = false, confirmText = 'Aceptar', cancelText = 'Cancelar', input1 = null, input2 = null }) {
+            return new Promise((resolve) => {
+                const modal = document.getElementById('app-modal');
+                const titleEl = document.getElementById('modal-title');
+                const msgEl = document.getElementById('modal-message');
+                const inputArea = document.getElementById('modal-input-area');
+                const label1 = document.getElementById('modal-label-1');
+                const inp1 = document.getElementById('modal-input-1');
+                const label2 = document.getElementById('modal-label-2');
+                const inp2 = document.getElementById('modal-input-2');
+                const cancelBtn = document.getElementById('modal-cancel-btn');
+                const confirmBtn = document.getElementById('modal-confirm-btn');
+
+                titleEl.innerText = title;
+                msgEl.innerText = message;
+                msgEl.style.display = message ? 'block' : 'none';
+
+                if (input1) {
+                    inputArea.classList.remove('hidden');
+                    label1.innerText = input1.label || '';
+                    label1.style.display = input1.label ? 'block' : 'none';
+                    inp1.value = input1.value || '';
+                    inp1.placeholder = input1.placeholder || '';
+                    inp1.classList.remove('hidden');
+                } else {
+                    inputArea.classList.add('hidden');
+                    inp1.classList.add('hidden');
+                }
+
+                if (input2) {
+                    label2.innerText = input2.label || '';
+                    label2.classList.remove('hidden');
+                    inp2.value = input2.value || '';
+                    inp2.placeholder = input2.placeholder || '';
+                    inp2.classList.remove('hidden');
+                } else {
+                    label2.classList.add('hidden');
+                    inp2.classList.add('hidden');
+                }
+
+                confirmBtn.innerText = confirmText;
+                cancelBtn.innerText = cancelText;
+
+                if (showCancel) {
+                    cancelBtn.classList.remove('hidden');
+                } else {
+                    cancelBtn.classList.add('hidden');
+                }
+
+                modal.classList.remove('hidden');
+                if (input1) {
+                    setTimeout(() => { inp1.focus(); inp1.select(); }, 50);
+                }
+
+                function cleanup() {
+                    modal.classList.add('hidden');
+                    confirmBtn.onclick = null;
+                    cancelBtn.onclick = null;
+                    inp1.onkeydown = null;
+                    inp2.onkeydown = null;
+                }
+
+                function onConfirm() {
+                    let res = true;
+                    if (input1 && input2) {
+                        res = { val1: inp1.value, val2: inp2.value };
+                    } else if (input1) {
+                        res = inp1.value;
+                    }
+                    cleanup();
+                    resolve(res);
+                }
+
+                function onCancel() {
+                    cleanup();
+                    resolve(input1 ? null : false);
+                }
+
+                confirmBtn.onclick = onConfirm;
+                cancelBtn.onclick = onCancel;
+
+                const handleKey = (e) => {
+                    if (e.key === 'Enter') {
+                        e.preventDefault();
+                        onConfirm();
+                    } else if (e.key === 'Escape') {
+                        e.preventDefault();
+                        onCancel();
+                    }
+                };
+                inp1.onkeydown = handleKey;
+                inp2.onkeydown = handleKey;
+            });
+        }
+
+        function appAlert(message, title = 'Atención') {
+            return openAppModal({ title, message, showCancel: false, confirmText: 'Entendido' });
+        }
+
+        function appConfirm(message, title = 'Confirmar') {
+            return openAppModal({ title, message, showCancel: true, confirmText: 'Sí, continuar', cancelText: 'Cancelar' });
+        }
+
+        function appPrompt(message, defaultValue = '', title = 'Ingresar Dato') {
+            return openAppModal({
+                title,
+                message: '',
+                showCancel: true,
+                input1: { label: message, value: defaultValue }
+            });
+        }
+
+        function appDoublePrompt(title, label1, val1, label2, val2) {
+            return openAppModal({
+                title,
+                message: '',
+                showCancel: true,
+                input1: { label: label1, value: val1 },
+                input2: { label: label2, value: val2 }
+            });
         }
 
         window.addEventListener('keydown', (e) => {
@@ -2466,7 +2630,7 @@
                 } catch (e) {}
             }
             if (!text || !extractYouTubeId(text)) {
-                const manual = prompt("Pega aquí el enlace de YouTube o el ID del video:");
+                const manual = await appPrompt("Pega aquí el enlace de YouTube o el ID del video:", "", "▶️ Video de YouTube");
                 if (manual) text = manual;
             }
             if (!text || !text.trim()) return;
@@ -2657,5 +2821,27 @@
             }
         }
     </script>
+<!-- ===================== MODAL UNIVERSAL ===================== -->
+<div id="app-modal" class="hidden fixed inset-0 z-[70] bg-black/75 backdrop-blur-sm flex items-center justify-center p-4">
+    <div class="bg-slate-900 border border-slate-700 rounded-2xl w-full max-w-sm shadow-2xl overflow-hidden">
+        <div class="p-4 border-b border-slate-800">
+            <h3 id="modal-title" class="font-bold text-white text-sm"></h3>
+            <p id="modal-message" class="text-xs text-slate-400 mt-1 leading-relaxed"></p>
+        </div>
+        <div id="modal-input-area" class="hidden px-4 pt-3 space-y-2">
+            <label id="modal-label-1" class="text-xs text-slate-400 block"></label>
+            <input id="modal-input-1" type="text" autocomplete="off"
+                class="w-full bg-slate-950 border border-slate-700 rounded-xl px-3.5 py-2.5 text-sm text-white focus:outline-none focus:border-amber-500 transition">
+            <label id="modal-label-2" class="text-xs text-slate-400 block hidden"></label>
+            <input id="modal-input-2" type="text" autocomplete="off"
+                class="hidden w-full bg-slate-950 border border-slate-700 rounded-xl px-3.5 py-2.5 text-sm text-white focus:outline-none focus:border-amber-500 transition">
+        </div>
+        <div class="p-4 flex justify-end gap-2">
+            <button id="modal-cancel-btn" class="hidden px-4 py-2 rounded-xl text-xs font-semibold bg-slate-800 text-slate-300 hover:text-white transition active:scale-95">Cancelar</button>
+            <button id="modal-confirm-btn" class="px-4 py-2 rounded-xl text-xs font-black bg-amber-500 hover:bg-amber-400 text-slate-950 transition active:scale-95">Aceptar</button>
+        </div>
+    </div>
+</div>
+
 </body>
 </html>
