@@ -343,12 +343,22 @@
                         <input type="hidden" id="new-youtube-title" value="">
                     </div>
 
-                    <div class="grid grid-cols-2 gap-2">
-                        <div>
-                            <label class="block text-xs font-medium text-slate-300 mb-1">Tono Base *</label>
-                            <select id="new-tone" onchange="updateNewSongHarmonicCircle(this.value)" class="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-sm text-white focus:outline-none focus:border-amber-500">
-                                <option value="C">C</option><option value="C#">C# / Db</option><option value="D">D</option><option value="D#">D# / Eb</option><option value="E">E</option><option value="F">F</option><option value="F#">F# / Gb</option><option value="G" selected>G</option><option value="G#">G# / Ab</option><option value="A">A</option><option value="A#">A# / Bb</option><option value="B">B</option>
-                            </select>
+                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                        <div class="space-y-1">
+                            <div class="flex items-center justify-between">
+                                <label class="block text-xs font-medium text-slate-300">Tono Base *</label>
+                                <span id="new-tone-relative-hint" class="text-[11px] text-amber-400/90 font-mono">💡 Relativo: Em</span>
+                            </div>
+                            <div class="flex gap-1.5 items-center">
+                                <select id="new-tone-root" onchange="syncNewSongTone()" class="flex-1 bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-sm text-white font-bold font-mono focus:outline-none focus:border-amber-500">
+                                    <option value="C">C</option><option value="C#">C# / Db</option><option value="D">D</option><option value="D#">D# / Eb</option><option value="E">E</option><option value="F">F</option><option value="F#">F# / Gb</option><option value="G" selected>G</option><option value="G#">G# / Ab</option><option value="A">A</option><option value="A#">A# / Bb</option><option value="B">B</option>
+                                </select>
+                                <div class="bg-slate-950 border border-slate-800 rounded-xl p-0.5 flex items-center gap-0.5 shrink-0">
+                                    <button type="button" id="new-mode-major" onclick="setNewSongMode('major')" class="px-2.5 py-1 rounded-lg text-xs font-bold transition bg-amber-500 text-slate-950 shadow-sm">Mayor</button>
+                                    <button type="button" id="new-mode-minor" onclick="setNewSongMode('minor')" class="px-2.5 py-1 rounded-lg text-xs font-bold transition text-slate-400 hover:text-white">Menor</button>
+                                </div>
+                                <input type="hidden" id="new-tone" value="G">
+                            </div>
                         </div>
                         <div>
                             <label class="block text-xs font-medium text-slate-300 mb-1">Ritmo</label>
@@ -470,11 +480,21 @@
                     <label class="block text-slate-400 mb-1">Tempo (BPM)</label>
                     <input type="number" id="quick-edit-bpm" placeholder="Ej. 120" class="w-full bg-slate-950 border border-slate-700 rounded-lg px-2.5 py-1.5 text-white focus:border-amber-500 outline-none">
                 </div>
-                <div>
-                    <label class="block text-slate-400 mb-1">Tono Base</label>
-                    <select id="quick-edit-tone" class="w-full bg-slate-950 border border-slate-700 rounded-lg px-2 py-1.5 text-white focus:border-amber-500 outline-none">
-                        <option value="C">C</option><option value="C#">C# / Db</option><option value="D">D</option><option value="D#">D# / Eb</option><option value="E">E</option><option value="F">F</option><option value="F#">F# / Gb</option><option value="G">G</option><option value="G#">G# / Ab</option><option value="A">A</option><option value="A#">A# / Bb</option><option value="B">B</option>
-                    </select>
+                <div class="col-span-2 sm:col-span-1 space-y-1">
+                    <div class="flex items-center justify-between">
+                        <label class="block text-slate-400">Tono Base</label>
+                        <span id="quick-edit-tone-relative-hint" class="text-[10px] text-amber-400 font-mono">💡 Relativo: Am</span>
+                    </div>
+                    <div class="flex gap-1 items-center">
+                        <select id="quick-edit-tone-root" onchange="syncQuickEditTone()" class="flex-1 bg-slate-950 border border-slate-700 rounded-lg px-2 py-1.5 text-white font-bold font-mono focus:border-amber-500 outline-none text-xs">
+                            <option value="C">C</option><option value="C#">C# / Db</option><option value="D">D</option><option value="D#">D# / Eb</option><option value="E">E</option><option value="F">F</option><option value="F#">F# / Gb</option><option value="G">G</option><option value="G#">G# / Ab</option><option value="A">A</option><option value="A#">A# / Bb</option><option value="B">B</option>
+                        </select>
+                        <div class="bg-slate-950 border border-slate-700 rounded-lg p-0.5 flex items-center gap-0.5 shrink-0">
+                            <button type="button" id="quick-mode-major" onclick="setQuickEditMode('major')" class="px-2 py-1 rounded text-[11px] font-bold transition bg-amber-500 text-slate-950">Mayor</button>
+                            <button type="button" id="quick-mode-minor" onclick="setQuickEditMode('minor')" class="px-2 py-1 rounded text-[11px] font-bold transition text-slate-400 hover:text-white">Menor</button>
+                        </div>
+                        <input type="hidden" id="quick-edit-tone" value="C">
+                    </div>
                 </div>
                 <div>
                     <label class="block text-slate-400 mb-1">Ritmo</label>
@@ -490,7 +510,12 @@
                 <div class="flex items-center gap-1.5 shrink-0">
                     <span class="text-[10px] text-amber-400 font-bold uppercase tracking-wider">Círculo:</span>
                     <select id="quick-modal-tone-select" onchange="renderHarmonicCircleChips(this.value, 'quick-lyrics-harmonic-chips', 'quick-lyrics-textarea')" class="bg-slate-900 border border-slate-700 text-amber-400 font-bold text-xs rounded-lg px-2 py-0.5 focus:outline-none">
-                        <option value="C">C</option><option value="C#">C# / Db</option><option value="D">D</option><option value="D#">D# / Eb</option><option value="E">E</option><option value="F">F</option><option value="F#">F# / Gb</option><option value="G">G</option><option value="G#">G# / Ab</option><option value="A">A</option><option value="A#">A# / Bb</option><option value="B">B</option>
+                        <optgroup label="Tonalidades Mayores">
+                            <option value="C">C</option><option value="C#">C# / Db</option><option value="D">D</option><option value="D#">D# / Eb</option><option value="E">E</option><option value="F">F</option><option value="F#">F# / Gb</option><option value="G">G</option><option value="G#">G# / Ab</option><option value="A">A</option><option value="A#">A# / Bb</option><option value="B">B</option>
+                        </optgroup>
+                        <optgroup label="Tonalidades Menores">
+                            <option value="Am">Am</option><option value="A#m">A#m / Bbm</option><option value="Bm">Bm</option><option value="Cm">Cm</option><option value="C#m">C#m</option><option value="Dm">Dm</option><option value="D#m">D#m / Ebm</option><option value="Em">Em</option><option value="Fm">Fm</option><option value="F#m">F#m</option><option value="Gm">Gm</option><option value="G#m">G#m</option>
+                        </optgroup>
                     </select>
                 </div>
                 <div id="quick-lyrics-harmonic-chips" class="flex items-center gap-1 overflow-x-auto no-scrollbar py-0.5"></div>
@@ -879,8 +904,92 @@
         }
 
         function updateNewSongHarmonicCircle(tone) {
-            document.getElementById('new-song-tone-badge').innerText = tone;
+            const badge = document.getElementById('new-song-tone-badge');
+            if (badge) badge.innerText = tone;
             renderHarmonicCircleChips(tone, 'new-song-harmonic-chips', 'new-lyrics');
+        }
+
+        // ===================== TONOS BASE, MODOS Y RELATIVOS (OPCIÓN 3) =====================
+        function getRelativeTone(tone) {
+            if (!tone) return '';
+            let isMinor = /m$/.test(tone) && !/maj/.test(tone);
+            let clean = normalizeNote(tone.replace(/m$/, '').replace(/maj.*$/, ''));
+            let idx = chromaticScale.indexOf(clean);
+            if (idx === -1) return '';
+            if (isMinor) {
+                // De menor a relativo Mayor (+3 semitonos, ej: Am -> C, Em -> G)
+                let relIdx = (idx + 3) % 12;
+                return chromaticScale[relIdx];
+            } else {
+                // De Mayor a relativo Menor (+9 semitonos / -3 semitonos, ej: C -> Am, G -> Em)
+                let relIdx = (idx + 9) % 12;
+                return chromaticScale[relIdx] + 'm';
+            }
+        }
+
+        let newSongToneMode = 'major';
+        let quickEditToneMode = 'major';
+
+        function updateToneUI(prefix, mode, rootVal) {
+            const majorBtn = document.getElementById(`${prefix}-mode-major`);
+            const minorBtn = document.getElementById(`${prefix}-mode-minor`);
+            const hiddenTone = document.getElementById(`${prefix}-tone`);
+            const hint = document.getElementById(`${prefix}-tone-relative-hint`);
+
+            if (mode === 'major') {
+                if (majorBtn) majorBtn.className = "px-2.5 py-1 rounded-lg text-xs font-bold transition bg-amber-500 text-slate-950 shadow-sm";
+                if (minorBtn) minorBtn.className = "px-2.5 py-1 rounded-lg text-xs font-bold transition text-slate-400 hover:text-white";
+                const fullTone = rootVal;
+                if (hiddenTone) hiddenTone.value = fullTone;
+                const rel = getRelativeTone(fullTone);
+                if (hint) hint.innerText = rel ? `💡 Relativo Menor: ${rel}` : '';
+                return fullTone;
+            } else {
+                if (majorBtn) majorBtn.className = "px-2.5 py-1 rounded-lg text-xs font-bold transition text-slate-400 hover:text-white";
+                if (minorBtn) minorBtn.className = "px-2.5 py-1 rounded-lg text-xs font-bold transition bg-amber-500 text-slate-950 shadow-sm";
+                const fullTone = rootVal + 'm';
+                if (hiddenTone) hiddenTone.value = fullTone;
+                const rel = getRelativeTone(fullTone);
+                if (hint) hint.innerText = rel ? `💡 Relativo Mayor: ${rel}` : '';
+                return fullTone;
+            }
+        }
+
+        function syncNewSongTone() {
+            const rootEl = document.getElementById('new-tone-root');
+            if (!rootEl) return;
+            const rootVal = rootEl.value;
+            const fullTone = updateToneUI('new', newSongToneMode, rootVal);
+            updateNewSongHarmonicCircle(fullTone);
+        }
+
+        function setNewSongMode(mode) {
+            newSongToneMode = mode;
+            syncNewSongTone();
+        }
+
+        function syncQuickEditTone() {
+            const rootEl = document.getElementById('quick-edit-tone-root');
+            if (!rootEl) return;
+            const rootVal = rootEl.value;
+            const fullTone = updateToneUI('quick-edit', quickEditToneMode, rootVal);
+            const quickModalTone = document.getElementById('quick-modal-tone-select');
+            if (quickModalTone) {
+                quickModalTone.value = fullTone;
+                renderHarmonicCircleChips(fullTone, 'quick-lyrics-harmonic-chips', 'quick-lyrics-textarea');
+            }
+        }
+
+        function setQuickEditMode(mode) {
+            quickEditToneMode = mode;
+            syncQuickEditTone();
+        }
+
+        function parseToneIntoRootAndMode(tone) {
+            if (!tone) return { root: 'C', mode: 'major' };
+            const isMinor = /m$/.test(tone) && !/maj/.test(tone);
+            const root = tone.replace(/m$/, '');
+            return { root: normalizeNote(root), mode: isMinor ? 'minor' : 'major' };
         }
 
         const latinToAngloMap = { 
@@ -1061,7 +1170,7 @@
             } else if (tab === 'add') {
                 document.getElementById('view-add').classList.remove('hidden');
                 if (addNavBtn) addNavBtn.className = "flex flex-col items-center gap-0.5 text-amber-400 transition";
-                updateNewSongHarmonicCircle(document.getElementById('new-tone').value);
+                syncNewSongTone();
             }
             saveData();
         }
@@ -2350,7 +2459,11 @@
             document.getElementById('quick-edit-title').value = activeSong.title || '';
             document.getElementById('quick-edit-artist').value = activeSong.artist || '';
             document.getElementById('quick-edit-singer').value = activeSong.singer || '';
-            document.getElementById('quick-edit-tone').value = activeSong.tone || 'C';
+            const parsedTone = parseToneIntoRootAndMode(activeSong.tone || 'C');
+            const rootEl = document.getElementById('quick-edit-tone-root');
+            if (rootEl) rootEl.value = parsedTone.root;
+            quickEditToneMode = parsedTone.mode;
+            syncQuickEditTone();
             document.getElementById('quick-edit-rhythm').value = activeSong.rhythm || '';
             document.getElementById('quick-edit-bpm').value = activeSong.bpm || '';
             document.getElementById('quick-edit-notes').value = activeSong.notes || '';
@@ -2662,7 +2775,7 @@
         });
 
         renderSetlistSelector();
-        updateNewSongHarmonicCircle('G');
+        syncNewSongTone();
         saveData();
         checkNotificationPermissionBanner();
         switchTab('setlist');
