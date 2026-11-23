@@ -1596,6 +1596,27 @@
             } catch (err) {}
         }
 
+        // Calcula el cantante con mayor número de canciones en una pauta
+        function getTopSingerForSetlist(setlist) {
+            if (!setlist || !setlist.songs || setlist.songs.length === 0) return null;
+            const counts = {};
+            setlist.songs.forEach(song => {
+                const singer = (song.singer || '').trim();
+                if (singer && singer.toLowerCase() !== 'banda' && singer.toLowerCase() !== 'sin cantante') {
+                    counts[singer] = (counts[singer] || 0) + 1;
+                }
+            });
+            let topSinger = null;
+            let max = 0;
+            for (const [singer, count] of Object.entries(counts)) {
+                if (count > max) {
+                    max = count;
+                    topSinger = singer;
+                }
+            }
+            return topSinger;
+        }
+
         function renderSetlistSelector() {
             const select = document.getElementById('setlist-select');
             select.innerHTML = "";
@@ -1603,34 +1624,31 @@
             const activeLists = setlists.filter(s => !s.archived);
             const archivedLists = setlists.filter(s => s.archived);
 
-            if (archivedLists.length === 0) {
-                // Si no hay archivadas, mostrar lista plana
-                activeLists.forEach(s => {
-                    const opt = document.createElement('option');
-                    opt.value = s.id;
-                    opt.innerText = `${s.name} (${s.songs.length} temas)`;
-                    if (s.id === activeSetlistId) opt.selected = true;
-                    select.appendChild(opt);
-                });
-            } else {
-                // Si hay archivadas, separar en optgroups para máxima claridad
-                const groupActive = document.createElement('optgroup');
-                groupActive.label = "📋 Pautas Activas";
-                activeLists.forEach(s => {
-                    const opt = document.createElement('option');
-                    opt.value = s.id;
-                    opt.innerText = `${s.name} (${s.songs.length} temas)`;
-                    if (s.id === activeSetlistId) opt.selected = true;
-                    groupActive.appendChild(opt);
-                });
-                select.appendChild(groupActive);
+            // Grupo 1: Pautas Activas
+            const groupActive = document.createElement('optgroup');
+            groupActive.label = "📋 Pautas Activas";
+            activeLists.forEach(s => {
+                const opt = document.createElement('option');
+                opt.value = s.id;
+                opt.innerText = `${s.name} (${s.songs.length} temas)`;
+                if (s.id === activeSetlistId) opt.selected = true;
+                groupActive.appendChild(opt);
+            });
+            select.appendChild(groupActive);
 
+            // Grupo 2: Historial / Archivadas
+            if (archivedLists.length > 0) {
                 const groupArchived = document.createElement('optgroup');
                 groupArchived.label = "📦 Historial / Archivadas";
                 archivedLists.forEach(s => {
                     const opt = document.createElement('option');
                     opt.value = s.id;
-                    opt.innerText = `📦 ${s.name} (${s.songs.length} temas)`;
+                    const topSinger = getTopSingerForSetlist(s);
+                    let label = `📦 ${s.name}`;
+                    if (topSinger && !s.name.toLowerCase().includes(topSinger.toLowerCase())) {
+                        label += ` (${topSinger})`;
+                    }
+                    opt.innerText = `${label} [${s.songs.length} temas]`;
                     if (s.id === activeSetlistId) opt.selected = true;
                     groupArchived.appendChild(opt);
                 });
@@ -1647,7 +1665,7 @@
                     archiveBtn.className = "bg-amber-500/20 text-amber-300 border border-amber-500/40 p-2 rounded-xl text-xs font-bold transition";
                 } else {
                     archiveBtn.innerText = "📦";
-                    archiveBtn.title = "Archivar esta pauta (Mover al Historial)";
+                    archiveBtn.title = "Archivar pauta actual en el Historial";
                     archiveBtn.className = "bg-slate-800 hover:bg-slate-700 text-slate-300 p-2 rounded-xl text-xs transition";
                 }
             }
@@ -1655,22 +1673,53 @@
 
         async function toggleArchiveCurrentSetlist() {
             const active = getActiveSetlist();
+
             if (!active.archived) {
-                const ok = await appConfirm(`¿Mover la pauta "${active.name}" al Historial de Archivadas?`, "📦 Archivar Pauta");
-                if (!ok) return;
+                // Caso: Archivar la pauta activa en el historial
+                const topSinger = getTopSingerForSetlist(active);
+                let suggestedName = active.name;
+                if (topSinger && !suggestedName.toLowerCase().includes(topSinger.toLowerCase())) {
+                    suggestedName = `${active.name} (${topSinger})`;
+                }
+
+                const finalArchiveName = await appPrompt(
+                    "Nombre con el que se guardará en el Historial:",
+                    suggestedName,
+                    "📦 Archivar Pauta de Ensayo"
+                );
+                if (!finalArchiveName || !finalArchiveName.trim()) return;
+
+                // 1. Marcar la pauta actual como archivada en el historial
+                active.name = finalArchiveName.trim();
                 active.archived = true;
+                active.archivedAt = new Date().toISOString();
+
+                // 2. Limpiar la vista activa creando automáticamente una nueva pauta limpia para el próximo ensayo
+                const activeCount = setlists.filter(s => !s.archived).length;
+                const newPautaName = `Pauta Ensayo ${activeCount + 1}`;
+                const newCleanSetlist = {
+                    id: "setlist_" + Date.now(),
+                    name: newPautaName,
+                    date: new Date().toISOString().slice(0, 10),
+                    songs: []
+                };
+                setlists.unshift(newCleanSetlist);
+                activeSetlistId = newCleanSetlist.id;
+
                 saveData();
                 renderSetlistSelector();
                 renderSetlist();
-                showNotification(`📦 "${active.name}" movida al Historial`);
+                showNotification(`📦 "${finalArchiveName}" guardada en Historial. ¡Pauta limpia lista para editar!`);
+                syncUploadToCloud(true);
             } else {
+                // Caso: El usuario está viendo una pauta del historial y desea reactivarla
                 active.archived = false;
                 saveData();
                 renderSetlistSelector();
                 renderSetlist();
-                showNotification(`📂 "${active.name}" reactivada en Pautas`);
+                showNotification(`📂 "${active.name}" reactivada en Pautas Activas.`);
+                syncUploadToCloud(true);
             }
-            syncUploadToCloud(true);
         }
 
         function switchActiveSetlist(newId) {
@@ -1775,15 +1824,19 @@
 
             // Banner si la pauta actual está en el historial (#16)
             if (activeSetlist.archived) {
+                const topSinger = getTopSingerForSetlist(activeSetlist);
                 const archiveNotice = document.createElement('div');
                 archiveNotice.className = "bg-amber-500/10 border border-amber-500/30 p-2.5 rounded-xl flex items-center justify-between text-xs text-amber-300";
                 archiveNotice.innerHTML = `
-                    <div class="flex items-center gap-2">
-                        <span class="text-base">📦</span>
-                        <span>Esta pauta está archivada en el <strong>Historial</strong>.</span>
+                    <div class="flex items-center gap-2 min-w-0 pr-2">
+                        <span class="text-base shrink-0">📦</span>
+                        <div class="truncate">
+                            <span class="font-bold block truncate">Historial: ${escapeHtml(activeSetlist.name)}</span>
+                            ${topSinger ? `<span class="text-[10px] text-amber-400 font-semibold block">🎤 Cantante principal: ${escapeHtml(topSinger)}</span>` : ''}
+                        </div>
                     </div>
-                    <button onclick="toggleArchiveCurrentSetlist()" class="bg-amber-500 hover:bg-amber-400 text-slate-950 font-bold px-2.5 py-1 rounded-lg text-[11px] transition">
-                        Reactivar
+                    <button onclick="toggleArchiveCurrentSetlist()" class="bg-amber-500 hover:bg-amber-400 text-slate-950 font-bold px-2.5 py-1.5 rounded-lg text-xs transition shrink-0 active:scale-95 shadow-sm">
+                        📂 Reactivar
                     </button>
                 `;
                 container.appendChild(archiveNotice);
