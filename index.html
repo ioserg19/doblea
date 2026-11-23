@@ -2107,12 +2107,22 @@
 
             let text = `🎸 *PAUTA DE ENSAYO: ${active.name.toUpperCase()}* 🎸\n`;
             text += `📅 Fecha: ${new Date().toLocaleDateString('es-ES')}\n`;
-            text += `🎵 Total: ${active.songs.length} canciones confirmadas:\n\n`;
+            text += `🎵 Total: ${active.songs.length} canciones confirmadas:\n`;
+
+            let currentSinger = null;
 
             active.songs.forEach((song, i) => {
+                const singerName = (song.singer || 'Banda').trim();
                 const ytUrl = song.youtubeUrl || (songs.find(s => s.id === song.id)?.youtubeUrl);
                 const hasYt = ytUrl && extractYouTubeId(ytUrl) ? ' 🎬' : '';
-                text += `${i + 1}. *${song.title}* — Cantante: ${song.singer || 'Banda'} (Tono: *${song.currentToneInSession || song.tone}*)${hasYt}\n`;
+
+                // Agrupar consecutivamente por cantante sin alterar el orden del repertorio
+                if (singerName.toLowerCase() !== (currentSinger || '').toLowerCase()) {
+                    currentSinger = singerName;
+                    text += `\n🎤 *Cantante: ${singerName}*\n`;
+                }
+
+                text += `  ${i + 1}. *${song.title}* (Tono: *${song.currentToneInSession || song.tone}*)${hasYt}\n`;
             });
 
             const playlistInfo = getSetlistPlaylistUrl(active);
