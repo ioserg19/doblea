@@ -2119,7 +2119,7 @@
                 // Agrupar consecutivamente por cantante sin alterar el orden del repertorio
                 if (singerName.toLowerCase() !== (currentSinger || '').toLowerCase()) {
                     currentSinger = singerName;
-                    text += `\n🎤 *Cantante: ${singerName}*\n`;
+                    text += `\n🎤 *: ${singerName}*\n`;
                 }
 
                 text += `  ${i + 1}. *${song.title}* (Tono: *${song.currentToneInSession || song.tone}*)${hasYt}\n`;
