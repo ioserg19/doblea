@@ -257,6 +257,7 @@
                         <button onclick="createNewSetlist()" title="Crear nueva pauta" class="bg-slate-800 hover:bg-slate-700 text-amber-400 p-2 rounded-xl text-xs font-bold transition">➕</button>
                         <button onclick="renameCurrentSetlist()" title="Renombrar esta pauta" class="bg-slate-800 hover:bg-slate-700 text-slate-300 p-2 rounded-xl text-xs transition">✏️</button>
                         <button onclick="duplicateCurrentSetlist()" title="Duplicar pauta" class="bg-slate-800 hover:bg-slate-700 text-slate-300 p-2 rounded-xl text-xs transition">📋</button>
+                        <button id="btn-archive-setlist" onclick="toggleArchiveCurrentSetlist()" title="Archivar o mover al historial" class="bg-slate-800 hover:bg-slate-700 text-slate-300 p-2 rounded-xl text-xs transition">📦</button>
                         <button onclick="deleteCurrentSetlist()" title="Eliminar pauta" class="bg-slate-800 hover:bg-red-500/20 text-slate-500 hover:text-red-400 p-2 rounded-xl text-xs transition">🗑️</button>
                     </div>
                 </div>
@@ -1110,9 +1111,53 @@
             container.innerHTML = "";
             if (list.length === 0) {
                 if (!hasLoadedInitialData) {
-                    container.innerHTML = `<div class="text-center text-xs text-amber-400 py-10 bg-slate-900/50 border border-dashed border-amber-500/30 rounded-2xl flex flex-col items-center justify-center gap-2"><span class="animate-spin text-base">⏳</span> Descargando canciones desde la nube...</div>`;
+                    // Skeleton loader moderno y elegante (#14)
+                    container.innerHTML = `
+                        <div class="space-y-3 py-4">
+                            <div class="flex items-center justify-between p-3.5 bg-slate-900/60 border border-slate-800 rounded-xl animate-pulse">
+                                <div class="space-y-2 flex-1 pr-4">
+                                    <div class="h-3.5 bg-slate-800 rounded w-2/5"></div>
+                                    <div class="h-2.5 bg-slate-800/60 rounded w-3/5"></div>
+                                </div>
+                                <div class="h-7 w-9 bg-slate-800 rounded-lg"></div>
+                            </div>
+                            <div class="flex items-center justify-between p-3.5 bg-slate-900/40 border border-slate-800/80 rounded-xl animate-pulse">
+                                <div class="space-y-2 flex-1 pr-4">
+                                    <div class="h-3.5 bg-slate-800 rounded w-1/3"></div>
+                                    <div class="h-2.5 bg-slate-800/60 rounded w-1/2"></div>
+                                </div>
+                                <div class="h-7 w-9 bg-slate-800 rounded-lg"></div>
+                            </div>
+                            <div class="flex items-center justify-center gap-2 text-xs text-amber-400 py-2">
+                                <span class="w-2 h-2 rounded-full bg-emerald-400 animate-ping"></span>
+                                <span class="font-semibold">Sincronizando repertorio en vivo...</span>
+                            </div>
+                        </div>
+                    `;
                 } else {
-                    container.innerHTML = `<div class="text-center text-xs text-slate-500 py-10 bg-slate-900/50 border border-dashed border-slate-800 rounded-2xl">No se encontraron canciones.</div>`;
+                    const searchVal = document.getElementById('search-input')?.value?.trim();
+                    if (searchVal) {
+                        container.innerHTML = `
+                            <div class="text-center py-10 bg-slate-900/50 border border-dashed border-slate-800 rounded-2xl space-y-2">
+                                <span class="text-2xl block">🔍</span>
+                                <p class="text-xs text-slate-400">Sin resultados para "<strong class="text-white">${escapeHtml(searchVal)}</strong>"</p>
+                                <button onclick="document.getElementById('search-input').value=''; filterSongs();" class="text-xs text-amber-400 hover:underline font-semibold">Limpiar búsqueda</button>
+                            </div>
+                        `;
+                    } else {
+                        container.innerHTML = `
+                            <div class="text-center py-10 bg-slate-900/50 border border-dashed border-slate-800 rounded-2xl space-y-3">
+                                <span class="text-3xl block">🎸</span>
+                                <div class="space-y-1">
+                                    <h4 class="text-sm font-bold text-white">Repertorio vacío</h4>
+                                    <p class="text-xs text-slate-400">Aún no hay canciones cargadas en la aplicación.</p>
+                                </div>
+                                <button onclick="switchTab('add')" class="inline-flex items-center gap-1.5 bg-amber-500 hover:bg-amber-400 text-slate-950 font-bold text-xs px-4 py-2 rounded-xl transition shadow-md">
+                                    <span>➕</span> Cargar Primera Canción
+                                </button>
+                            </div>
+                        `;
+                    }
                 }
                 return;
             }
@@ -1554,13 +1599,78 @@
         function renderSetlistSelector() {
             const select = document.getElementById('setlist-select');
             select.innerHTML = "";
-            setlists.forEach(s => {
-                const opt = document.createElement('option');
-                opt.value = s.id;
-                opt.innerText = `${s.name} (${s.songs.length} temas)`;
-                if (s.id === activeSetlistId) opt.selected = true;
-                select.appendChild(opt);
-            });
+
+            const activeLists = setlists.filter(s => !s.archived);
+            const archivedLists = setlists.filter(s => s.archived);
+
+            if (archivedLists.length === 0) {
+                // Si no hay archivadas, mostrar lista plana
+                activeLists.forEach(s => {
+                    const opt = document.createElement('option');
+                    opt.value = s.id;
+                    opt.innerText = `${s.name} (${s.songs.length} temas)`;
+                    if (s.id === activeSetlistId) opt.selected = true;
+                    select.appendChild(opt);
+                });
+            } else {
+                // Si hay archivadas, separar en optgroups para máxima claridad
+                const groupActive = document.createElement('optgroup');
+                groupActive.label = "📋 Pautas Activas";
+                activeLists.forEach(s => {
+                    const opt = document.createElement('option');
+                    opt.value = s.id;
+                    opt.innerText = `${s.name} (${s.songs.length} temas)`;
+                    if (s.id === activeSetlistId) opt.selected = true;
+                    groupActive.appendChild(opt);
+                });
+                select.appendChild(groupActive);
+
+                const groupArchived = document.createElement('optgroup');
+                groupArchived.label = "📦 Historial / Archivadas";
+                archivedLists.forEach(s => {
+                    const opt = document.createElement('option');
+                    opt.value = s.id;
+                    opt.innerText = `📦 ${s.name} (${s.songs.length} temas)`;
+                    if (s.id === activeSetlistId) opt.selected = true;
+                    groupArchived.appendChild(opt);
+                });
+                select.appendChild(groupArchived);
+            }
+
+            // Actualizar apariencia del botón de archivar según estado de la pauta actual
+            const current = getActiveSetlist();
+            const archiveBtn = document.getElementById('btn-archive-setlist');
+            if (archiveBtn) {
+                if (current && current.archived) {
+                    archiveBtn.innerText = "📂";
+                    archiveBtn.title = "Reactivar esta pauta (Mover a Pautas Activas)";
+                    archiveBtn.className = "bg-amber-500/20 text-amber-300 border border-amber-500/40 p-2 rounded-xl text-xs font-bold transition";
+                } else {
+                    archiveBtn.innerText = "📦";
+                    archiveBtn.title = "Archivar esta pauta (Mover al Historial)";
+                    archiveBtn.className = "bg-slate-800 hover:bg-slate-700 text-slate-300 p-2 rounded-xl text-xs transition";
+                }
+            }
+        }
+
+        async function toggleArchiveCurrentSetlist() {
+            const active = getActiveSetlist();
+            if (!active.archived) {
+                const ok = await appConfirm(`¿Mover la pauta "${active.name}" al Historial de Archivadas?`, "📦 Archivar Pauta");
+                if (!ok) return;
+                active.archived = true;
+                saveData();
+                renderSetlistSelector();
+                renderSetlist();
+                showNotification(`📦 "${active.name}" movida al Historial`);
+            } else {
+                active.archived = false;
+                saveData();
+                renderSetlistSelector();
+                renderSetlist();
+                showNotification(`📂 "${active.name}" reactivada en Pautas`);
+            }
+            syncUploadToCloud(true);
         }
 
         function switchActiveSetlist(newId) {
@@ -1663,11 +1773,62 @@
             if (window._setlistSortable) { try { window._setlistSortable.destroy(); } catch(e){} window._setlistSortable = null; }
             const activeSetlist = getActiveSetlist();
 
+            // Banner si la pauta actual está en el historial (#16)
+            if (activeSetlist.archived) {
+                const archiveNotice = document.createElement('div');
+                archiveNotice.className = "bg-amber-500/10 border border-amber-500/30 p-2.5 rounded-xl flex items-center justify-between text-xs text-amber-300";
+                archiveNotice.innerHTML = `
+                    <div class="flex items-center gap-2">
+                        <span class="text-base">📦</span>
+                        <span>Esta pauta está archivada en el <strong>Historial</strong>.</span>
+                    </div>
+                    <button onclick="toggleArchiveCurrentSetlist()" class="bg-amber-500 hover:bg-amber-400 text-slate-950 font-bold px-2.5 py-1 rounded-lg text-[11px] transition">
+                        Reactivar
+                    </button>
+                `;
+                container.appendChild(archiveNotice);
+            }
+
             if (activeSetlist.songs.length === 0) {
                 if (!hasLoadedInitialData) {
-                    container.innerHTML = `<div class="text-center text-xs text-amber-400 py-10 bg-slate-900/50 border border-dashed border-amber-500/30 rounded-2xl flex flex-col items-center justify-center gap-2"><span class="animate-spin text-base">⏳</span> Sincronizando pauta desde la nube...</div>`;
+                    // Skeleton loader (#14)
+                    const skeleton = document.createElement('div');
+                    skeleton.className = "space-y-2 py-3";
+                    skeleton.innerHTML = `
+                        <div class="flex items-center gap-3 p-3 bg-slate-900/60 border border-slate-800 rounded-xl animate-pulse">
+                            <div class="w-6 h-4 bg-slate-800 rounded"></div>
+                            <div class="space-y-1.5 flex-1">
+                                <div class="h-3 bg-slate-800 rounded w-2/4"></div>
+                                <div class="h-2 bg-slate-800/60 rounded w-1/3"></div>
+                            </div>
+                        </div>
+                        <div class="flex items-center gap-3 p-3 bg-slate-900/40 border border-slate-800/80 rounded-xl animate-pulse">
+                            <div class="w-6 h-4 bg-slate-800 rounded"></div>
+                            <div class="space-y-1.5 flex-1">
+                                <div class="h-3 bg-slate-800 rounded w-1/3"></div>
+                                <div class="h-2 bg-slate-800/60 rounded w-1/4"></div>
+                            </div>
+                        </div>
+                        <div class="text-center text-xs text-amber-400 py-2 flex items-center justify-center gap-2">
+                            <span class="w-2 h-2 rounded-full bg-emerald-400 animate-ping"></span>
+                            <span>Sincronizando pauta de ensayo...</span>
+                        </div>
+                    `;
+                    container.appendChild(skeleton);
                 } else {
-                    container.innerHTML = `<div class="text-center text-xs text-slate-500 py-10 bg-slate-900/50 border border-dashed border-slate-800 rounded-2xl">La pauta "${activeSetlist.name}" no tiene canciones aún. Ve a Canciones y pulsa ➕ para añadir.</div>`;
+                    const emptyCard = document.createElement('div');
+                    emptyCard.className = "text-center py-10 bg-slate-900/50 border border-dashed border-slate-800 rounded-2xl space-y-3";
+                    emptyCard.innerHTML = `
+                        <span class="text-3xl block">📋</span>
+                        <div class="space-y-1">
+                            <h4 class="text-sm font-bold text-white">"${escapeHtml(activeSetlist.name)}" está vacía</h4>
+                            <p class="text-xs text-slate-400">Añade canciones desde el repertorio para armar tu ensayo.</p>
+                        </div>
+                        <button onclick="switchTab('library')" class="inline-flex items-center gap-1.5 bg-amber-500 hover:bg-amber-400 text-slate-950 font-bold text-xs px-4 py-2 rounded-xl transition shadow-md">
+                            <span>🎵</span> Ver Canciones para Agregar
+                        </button>
+                    `;
+                    container.appendChild(emptyCard);
                 }
                 return;
             }
