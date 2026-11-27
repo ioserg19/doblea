@@ -1020,23 +1020,17 @@
             const clean = cleanRawChordToken(tok);
             if (!clean) return false;
 
-            // Soporta:
-            // - Raíz: C, D, E, F, G, A, B o Do, Re, Mi, Fa, Sol, La, Si (mayúsculas o minúsculas)
-            // - Alteración: # o b (también unicode ♯, ♭)
-            // - Cualidad/Extensiones: m, min, maj, M, dim, aug, sus, add, 2, 4, 5, 6, 7, 9, 11, 13, b5, #5, b9, #9, #11, b13, °, ø, +
-            // - Bajo invertido opcional: /G, /F#, /Sib, /Do#
             const chordRegex = /^(?:Do|Re|Mi|Fa|Sol|La|Si|[A-G])(?:#|b|♯|♭)?(?:(?:maj|min|m|M|dim|aug|sus|add|dom|[0-9]|b5|#5|b9|#9|#11|b13|°|ø|\+|\(|\))*)(?:\/(?:Do|Re|Mi|Fa|Sol|La|Si|[A-G])(?:#|b|♯|♭)?)?$/i;
 
-            // Evitar falsos positivos con palabras cortas en español/inglés si no tienen alteración ni extensión
-            // Ej: "A", "La", "Mi", "Si", "Do", "Sol", "Re", "Fa" solas en minúscula en medio de texto
-            if (/^(a|la|mi|si|do|sol|re|fa)$/i.test(clean) && clean === clean.toLowerCase()) {
+            // Palabras cortas ambiguas en minúscula ("a", "e", "la", "mi", "si", "do", "sol", "re", "fa") en medio de letra
+            if (/^(a|e|la|mi|si|do|sol|re|fa)$/i.test(clean) && clean === clean.toLowerCase()) {
                 return false;
             }
 
             return chordRegex.test(clean);
         }
 
-        // 3. Normaliza la nota raíz a notación americana estándar (opcional, mantiene extensiones)
+        // 3. Normaliza la nota raíz a notación americana estándar (mantiene extensiones)
         function normalizeChordToken(tok) {
             const clean = cleanRawChordToken(tok);
             const latinToAmerican = {
@@ -1063,11 +1057,13 @@
 
         // 4. Detecta si una línea es de acordes incluso si tiene barras |, guiones, paréntesis o indicadores (x2)
         function isChordLine(line) {
-            const trimmed = line.trim();
+            const trimmed = line.replace(/\u00A0/g, ' ').trim();
             if (!trimmed) return false;
 
-            // Ignorar si ya tiene corchetes de formato propio [C]
-            if (/\[[A-G]|\[(Do|Re|Mi|Fa|Sol|La|Si)/i.test(trimmed)) return false;
+            // Si ya está convertida en formato [Acorde]letra, no es línea cruda de acordes
+            if (/\[[A-G][#b]?[^\]]*\][^\s\[]/i.test(trimmed)) return false;
+            // Si ya tiene corchetes sueltos de acordes (ej: "[C] [G] [Am]"), tampoco re-procesar
+            if (/\[(?:Do|Re|Mi|Fa|Sol|La|Si|[A-G])[#b]?[^\]]*\]/i.test(trimmed)) return false;
 
             // Separar también por barras o guiones entre acordes (ej: "C-G-Am-F" o "| C | G |")
             const tokens = trimmed
@@ -1080,17 +1076,26 @@
 
             let chordCount = 0;
             let validTokens = 0;
+            let unambiguousChords = 0;
 
             for (const tok of tokens) {
                 // Ignorar marcadores musicales comunes en líneas de acordes: x2, (x4), //, %, /
-                if (/^(?:x\d+|\(x\d+\)|\/+|%|N\.C\.|NC)$/i.test(tok)) continue;
+                if (/^(?:x\d+|\(x\d+\)|\/+|%|N\.C\.|NC|bis)$/i.test(tok)) continue;
                 validTokens++;
                 if (isChordToken(tok)) {
                     chordCount++;
+                    const clean = cleanRawChordToken(tok);
+                    if (!/^(a|e|la|mi|si|do|sol|re|fa)$/i.test(clean)) {
+                        unambiguousChords++;
+                    }
                 }
             }
 
             if (validTokens === 0) return false;
+            // Evitar confundir frases en MAYÚSCULAS como "A MI MANERA" o "LA SOLUCIÓN"
+            if (validTokens >= 2 && unambiguousChords === 0 && chordCount < validTokens) {
+                return false;
+            }
             // Si al menos el 60% de los elementos útiles de la línea son acordes, es línea de acordes
             return (chordCount / validTokens) >= 0.6;
         }
@@ -1113,9 +1118,9 @@
                 };
             }
 
-            // Caso B: La sección viene pegada antes de los acordes (ej: "Intro: C G Am F" o "Coro - Do Sol Lam")
+            // Caso B: La sección viene pegada antes de los acordes (ej: "Intro: C G Am F", "Coro - Do Sol Lam", "[Intro] C G Am")
             const inlineSectionRegex = new RegExp(
-                `^[\\s\\(\\[\\{]*((?:${SECTION_KEYWORDS})(?:\\s*(?:#?\\d+|[IVX]+))?)[\\s\\)\\]\\}]*(?::|\\-|–|—|\\|)\\s*(.+)$`,
+                `^[\\s\\(\\[\\{]*((?:${SECTION_KEYWORDS})(?:\\s*(?:#?\\d+|[IVX]+))?)[\\s\\)\\]\\}]*(?::|\\-|–|—|\\||\\s)\\s*(.+)$`,
                 'i'
             );
             const inlineMatch = trimmedLine.match(inlineSectionRegex);
@@ -1129,11 +1134,47 @@
             return null;
         }
 
-        // 5. Conversor principal mejorado
+        // Escanea acordes en una línea conservando la posición exacta de columna (incluyendo "Am-G-F")
+        function scanChordsWithColumns(line) {
+            const chordsWithCol = [];
+            const chunkReg = /\S+/g;
+            let m;
+            while ((m = chunkReg.exec(line)) !== null) {
+                const rawChunk = m[0];
+                const baseCol = m.index;
+
+                // Si el bloque tiene acordes separados por guiones (ej: "Am-G-F" o "Do-Sol"), dividir conservando columna
+                if (/-/.test(rawChunk) && !isChordToken(rawChunk)) {
+                    const subReg = /[^-\|\s]+/g;
+                    let sm;
+                    while ((sm = subReg.exec(rawChunk)) !== null) {
+                        if (isChordToken(sm[0])) {
+                            chordsWithCol.push({
+                                chord: normalizeChordToken(sm[0]),
+                                col: baseCol + sm.index
+                            });
+                        }
+                    }
+                } else if (isChordToken(rawChunk)) {
+                    chordsWithCol.push({
+                        chord: normalizeChordToken(rawChunk),
+                        col: baseCol
+                    });
+                }
+            }
+            return chordsWithCol;
+        }
+
+        // 5. Conversor principal optimizado para textos copiados de internet
         function convertTabsToBracketedChords(rawText) {
             if (!rawText) return '';
-            // Reemplazar tabulaciones (\t) por 4 espacios para no desfasar las columnas
-            const lines = rawText.replace(/\t/g, '    ').split(/\r?\n/);
+            // Limpiar caracteres invisibles típicos de HTML/web (&nbsp;, zero-width spaces, BOM) y normalizar tabs
+            const sanitized = rawText
+                .replace(/[\u200B-\u200D\uFEFF]/g, '')
+                .replace(/\u00A0/g, ' ')
+                .replace(/\t/g, '    ');
+
+            const lines = sanitized.split(/\r?\n/);
             const outputLines = [];
 
             let i = 0;
@@ -1144,13 +1185,11 @@
                 // Detectar secciones con extractSectionHeader
                 let sectionInfo = extractSectionHeader(trimmed);
                 if (sectionInfo) {
-                    // Agrega una línea en blanco antes de la sección (si no es la primera línea) para respirar mejor
                     if (outputLines.length > 0 && outputLines[outputLines.length - 1] !== '') {
                         outputLines.push('');
                     }
                     outputLines.push(sectionInfo.sectionTag);
 
-                    // Si había acordes en la misma línea (ej. "Intro: C G Am F"), los procesa en la siguiente línea
                     if (sectionInfo.restOfLine) {
                         let bracketed = sectionInfo.restOfLine.replace(/\S+/g, tok => {
                             if (isChordToken(tok)) return `[${normalizeChordToken(tok)}]`;
@@ -1163,30 +1202,27 @@
                 }
 
                 if (isChordLine(line)) {
-                    // También separa acordes unidos por guiones como "Am-G-F" manteniendo su posición exacta
-                    let normalizedLineForScan = line.replace(
-                        /([A-Ga-g][#b]?(?:m|maj|min|sus|dim|aug|add|[0-9])*)-(?=[A-Ga-g]|Do|Re|Mi|Fa|Sol|La|Si)/gi,
-                        '$1 '
-                    );
+                    const chordsWithCol = scanChordsWithColumns(line);
 
-                    let chordsWithCol = [];
-                    const tokenReg = /\S+/g;
-                    let m;
-                    while ((m = tokenReg.exec(normalizedLineForScan)) !== null) {
-                        let tok = m[0];
-                        if (isChordToken(tok)) {
-                            chordsWithCol.push({
-                                chord: normalizeChordToken(tok),
-                                col: m.index
-                            });
+                    // Buscar la línea de letra debajo (tolerando 1 línea en blanco accidental por copiado web)
+                    let targetLyricIdx = -1;
+                    if (i + 1 < lines.length && lines[i + 1].trim().length > 0) {
+                        if (!isChordLine(lines[i + 1]) && !extractSectionHeader(lines[i + 1].trim())) {
+                            targetLyricIdx = i + 1;
                         }
+                    } else if (
+                        i + 1 < lines.length &&
+                        lines[i + 1].trim().length === 0 &&
+                        i + 2 < lines.length &&
+                        lines[i + 2].trim().length > 0 &&
+                        !isChordLine(lines[i + 2]) &&
+                        !extractSectionHeader(lines[i + 2].trim())
+                    ) {
+                        targetLyricIdx = i + 2;
                     }
 
-                    let nextIdx = i + 1;
-                    let nextLine = nextIdx < lines.length ? lines[nextIdx] : null;
-
-                    if (nextLine !== null && nextLine.trim().length > 0 && !isChordLine(nextLine)) {
-                        let lyricLine = nextLine.replace(/\t/g, '    ');
+                    if (targetLyricIdx !== -1 && chordsWithCol.length > 0) {
+                        let lyricLine = lines[targetLyricIdx];
                         chordsWithCol.sort((a, b) => b.col - a.col);
 
                         chordsWithCol.forEach(item => {
@@ -1199,10 +1235,13 @@
                         });
 
                         outputLines.push(lyricLine);
-                        i += 2;
+                        i = targetLyricIdx + 1;
                     } else {
                         // Línea solo instrumental (ej. Intro: | C | G | Am | F |)
-                        let bracketed = normalizedLineForScan.replace(/\S+/g, tok => {
+                        let bracketed = line.replace(/\S+/g, tok => {
+                            if (/-/.test(tok) && !isChordToken(tok)) {
+                                return tok.replace(/[^-\|\s]+/g, sub => isChordToken(sub) ? `[${normalizeChordToken(sub)}]` : sub);
+                            }
                             if (isChordToken(tok)) return `[${normalizeChordToken(tok)}]`;
                             return tok;
                         });
@@ -1647,7 +1686,7 @@
             let steps = getStepsBetween(oldTone, newTone);
             if (steps === 0) return lyricsText;
             return lyricsText.replace(/\[(.*?)\]/g, (match, chord) => {
-                if (/^(intro|coro|verso|estrofa|puente|bridge|solo|final|outro|coda)/i.test(chord.trim())) {
+                if (new RegExp(`^(${SECTION_KEYWORDS})`, 'i').test(chord.trim())) {
                     return match;
                 }
                 return '[' + transposeChord(chord, steps) + ']';
@@ -1675,7 +1714,7 @@
                     return;
                 }
 
-                let sectionMatch = trimmed.match(/^\[(Intro|Coro|Verso|Estrofa|Puente|Bridge|Solo|Final|Outro|Pre-coro|Coda)(.*?)\]$/i);
+                let sectionMatch = trimmed.match(new RegExp(`^\\[(${SECTION_KEYWORDS})(.*?)\\]$`, 'i'));
                 if (sectionMatch) {
                     const secDiv = document.createElement('div');
                     secDiv.className = "section-badge";
