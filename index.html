@@ -2493,7 +2493,7 @@
                 youtubeTitle: activeSong.youtubeTitle || ''
             };
 
-            songs.push(clonedSong);
+            songs.unshift(clonedSong);
             saveData();
             renderSingerChips();
             showNotification(`¡Versión para ${otherSinger} creada con éxito!`);
@@ -2530,7 +2530,7 @@
                 youtubeUrl: ytUrlInput ? ytUrlInput.value.trim() : '',
                 youtubeTitle: ytTitleInput ? ytTitleInput.value.trim() : ''
             };
-            songs.push(newSong);
+            songs.unshift(newSong);
             saveData();
             showNotification("¡Canción agregada a la librería!");
             document.getElementById('add-song-form').reset();
