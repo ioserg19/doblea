@@ -1491,22 +1491,25 @@
                 const card = document.createElement('div');
                 card.className = "bg-slate-900 border border-slate-800 p-3.5 rounded-xl flex justify-between items-center cursor-pointer hover:border-amber-500/80 transition group shadow-sm";
                 card.onclick = () => openSongViewer(song.id, 'library');
-                // Cantante a mostrar: prioridad a singerVersions[0] si existe
-                const displaySinger = [...new Set(
-                    (song.singerVersions || []).map(version => version.singer).filter(Boolean)
-                )].join(', ') || song.singer || 'Sin asignar';
+                const singerToneVersions = (song.singerVersions && song.singerVersions.length)
+                    ? song.singerVersions
+                    : [{ singer: song.singer || 'Sin asignar', tone: song.tone || 'C' }];
+                const singerToneDetails = singerToneVersions.map(version => `
+                    <span class="inline-flex items-center gap-1 bg-amber-500/10 border border-amber-500/20 text-amber-200 px-2 py-0.5 rounded-lg text-[10px] font-semibold">
+                        🎤 ${escapeHtml(version.singer || 'Sin asignar')}
+                        <span class="font-mono text-amber-400">${escapeHtml(version.tone || song.tone || 'C')}</span>
+                    </span>
+                `).join('');
                 card.innerHTML = `
                     <div class="space-y-0.5 min-w-0 pr-2">
                         <h3 class="font-bold text-white text-sm group-hover:text-amber-400 transition truncate">${song.title}</h3>
                         <p class="text-xs text-slate-400 truncate">
-                            Artista: <span class="text-slate-300">${song.artist}</span> • Cantante: <span class="text-amber-400 font-semibold">${displaySinger}</span>
+                            Artista: <span class="text-slate-300">${song.artist}</span>
                         </p>
+                        <div class="flex flex-wrap gap-1 pt-1">${singerToneDetails}</div>
                         ${song.rhythm ? `<span class="text-[10px] text-slate-500 font-mono">${song.rhythm} ${song.bpm ? '• ' + song.bpm + ' BPM' : ''}</span>` : ''}
                     </div>
                     <div class="text-right flex items-center gap-2 shrink-0">
-                        <span class="bg-amber-500/10 border border-amber-500/30 text-amber-400 text-xs px-2.5 py-1 rounded-lg font-mono font-bold">
-                            ${song.tone}
-                        </span>
                         <button onclick="event.stopPropagation(); quickAddToSetlist(${song.id})" title="Añadir directo al Setlist" class="bg-slate-800 hover:bg-amber-500 hover:text-slate-950 text-slate-300 text-xs p-2 rounded-lg transition">
                             ➕
                         </button>
