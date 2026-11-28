@@ -211,20 +211,23 @@
                 </div>
 
                 <div id="library-management-panel" class="space-y-3 pt-2 border-t border-slate-800">
-                    <div id="viewer-singer-version-control" class="hidden bg-slate-950/80 p-3 rounded-xl border border-slate-800">
-                        <label for="viewer-singer-version-select" class="block text-xs text-amber-300 font-semibold mb-2">🎤 Versión de cantante</label>
-                        <select id="viewer-singer-version-select" onchange="selectViewerSingerVersion(this.value)" class="w-full bg-slate-900 border border-slate-700 rounded-xl px-3 py-2.5 text-sm text-white focus:outline-none focus:border-amber-500 transition"></select>
-                    </div>
                     <div class="bg-slate-950/80 p-3 rounded-xl border border-slate-800 space-y-2.5">
-                        <span class="text-xs text-amber-300 font-semibold block flex items-center justify-between">
-                            <span>🎵 Transportar Tono en Vivo:</span>
-                            <span id="current-tone-label" class="text-amber-400 font-mono font-bold text-sm bg-slate-900 px-2 py-0.5 rounded border border-slate-800">C</span>
-                        </span>
-                        
-                        <div class="flex items-center gap-1.5">
-                            <button onclick="transpose(-1)" class="flex-1 bg-slate-900 hover:bg-slate-800 border border-slate-700 text-amber-400 py-1.5 rounded-lg text-xs font-bold transition active:scale-95" title="Bajar medio tono">-</button>
-                            <button onclick="resetTranspose()" class="bg-slate-900 hover:bg-slate-800 border border-slate-700 text-slate-300 px-3 py-1.5 rounded-lg text-xs font-semibold transition active:scale-95" title="Restaurar tono original">Reset</button>
-                            <button onclick="transpose(1)" class="flex-1 bg-slate-900 hover:bg-slate-800 border border-slate-700 text-amber-400 py-1.5 rounded-lg text-xs font-bold transition active:scale-95" title="Subir medio tono">+</button>
+                        <div class="grid grid-cols-2 gap-3 items-start">
+                            <div id="live-tone-controls" class="min-w-0 col-span-2 space-y-2.5">
+                                <span class="text-xs text-amber-300 font-semibold flex items-center justify-between gap-1">
+                                    <span class="truncate">🎵 Transportar Tono en Vivo:</span>
+                                    <span id="current-tone-label" class="text-amber-400 font-mono font-bold text-sm bg-slate-900 px-2 py-0.5 rounded border border-slate-800 shrink-0">C</span>
+                                </span>
+                                <div class="flex items-center gap-1.5">
+                                    <button onclick="transpose(-1)" class="flex-1 bg-slate-900 hover:bg-slate-800 border border-slate-700 text-amber-400 py-1.5 rounded-lg text-xs font-bold transition active:scale-95" title="Bajar medio tono">-</button>
+                                    <button onclick="resetTranspose()" class="bg-slate-900 hover:bg-slate-800 border border-slate-700 text-slate-300 px-3 py-1.5 rounded-lg text-xs font-semibold transition active:scale-95" title="Restaurar tono original">Reset</button>
+                                    <button onclick="transpose(1)" class="flex-1 bg-slate-900 hover:bg-slate-800 border border-slate-700 text-amber-400 py-1.5 rounded-lg text-xs font-bold transition active:scale-95" title="Subir medio tono">+</button>
+                                </div>
+                            </div>
+                            <div id="viewer-singer-version-control" class="hidden min-w-0">
+                                <label for="viewer-singer-version-select" class="block text-xs text-amber-300 font-semibold mb-2">🎤 Cantante</label>
+                                <select id="viewer-singer-version-select" onchange="selectViewerSingerVersion(this.value)" class="w-full bg-slate-900 border border-slate-700 rounded-xl px-2 py-2.5 text-xs text-white focus:outline-none focus:border-amber-500 transition"></select>
+                            </div>
                         </div>
 
                         <button onclick="saveSongEdits()" class="w-full bg-amber-500 hover:bg-amber-400 text-slate-950 py-2 rounded-lg text-xs font-bold transition flex items-center justify-center gap-2 shadow-md shadow-amber-500/20">
@@ -1654,8 +1657,10 @@
             if (selectedKey !== null) select.value = String(selectedKey);
             if (versions.length > 1 && viewerSource === 'library') {
                 control.classList.remove('hidden');
+                document.getElementById('live-tone-controls').classList.remove('col-span-2');
             } else {
                 control.classList.add('hidden');
+                document.getElementById('live-tone-controls').classList.add('col-span-2');
             }
         }
 
