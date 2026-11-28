@@ -1432,7 +1432,7 @@
             renderLibrary(filtered);
         }
 
-        function renderLibrary(list) {
+        function renderLibrary(list, singerToOpen = null) {
             const container = document.getElementById('songs-container');
             container.innerHTML = "";
             if (list.length === 0) {
@@ -1490,7 +1490,11 @@
             list.forEach(song => {
                 const card = document.createElement('div');
                 card.className = "bg-slate-900 border border-slate-800 p-3.5 rounded-xl flex justify-between items-center cursor-pointer hover:border-amber-500/80 transition group shadow-sm";
-                card.onclick = () => openSongViewer(song.id, 'library');
+                const matchingSinger = singerToOpen && (song.singerVersions || []).find(version =>
+                    version.singer.toLowerCase() === singerToOpen.toLowerCase() ||
+                    version.singer.toLowerCase().includes(singerToOpen.toLowerCase())
+                );
+                card.onclick = () => openSongViewer(song.id, 'library', -1, matchingSinger?.singer || null);
                 const singerToneVersions = (song.singerVersions && song.singerVersions.length)
                     ? song.singerVersions
                     : [{ singer: song.singer || 'Sin asignar', tone: song.tone || 'C' }];
@@ -1530,7 +1534,7 @@
                 (s.singer && s.singer.toLowerCase().includes(query)) ||
                 (s.singerVersions && s.singerVersions.some(v => v.singer.toLowerCase().includes(query)))
             );
-            renderLibrary(filtered);
+            renderLibrary(filtered, query || null);
         }
 
         function filterBySinger(singer, element) {
@@ -1546,7 +1550,7 @@
                     s.singer && s.singer.toLowerCase() === singer.toLowerCase() ||
                     s.singerVersions && s.singerVersions.some(v => v.singer.toLowerCase() === singer.toLowerCase())
                 );
-                renderLibrary(filtered);
+                renderLibrary(filtered, singer);
             }
         }
 
@@ -1695,7 +1699,7 @@
             renderChordChart();
         }
 
-        function openSongViewer(songIdOrObject, source = 'library', setlistIdx = -1) {
+        function openSongViewer(songIdOrObject, source = 'library', setlistIdx = -1, preferredSinger = null) {
             viewerSource = source;
             currentSetlistIndex = setlistIdx;
 
@@ -1711,7 +1715,9 @@
             if (viewerSource === 'library') {
                 const catalogSong = songs.find(song => song.id === activeSong.id) || activeSong;
                 const versions = ensureSongSingerVersions(catalogSong);
-                const selectedVersion = versions.find(version =>
+                const selectedVersion = (preferredSinger && versions.find(version =>
+                    version.singer.toLowerCase() === preferredSinger.toLowerCase()
+                )) || versions.find(version =>
                     version.singer.toLowerCase() === String(activeSong.singer || '').toLowerCase()
                 ) || versions[0];
                 if (selectedVersion) {
