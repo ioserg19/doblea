@@ -1539,30 +1539,63 @@
             }
         }
 
-        function quickAddToSetlist(songId) {
+        async function quickAddToSetlist(songId) {
             const target = songs.find(s => s.id === songId);
             if (!target) return;
 
-            const singerInput = prompt(
-                'Nombre del cantante para esta versión:',
-                target.singerVersions?.[0]?.singer || target.singer || 'Sin asignar'
+            const versions = target.singerVersions || [];
+            const singers = [...new Map(
+                versions
+                    .map(version => version.singer)
+                    .filter(Boolean)
+                    .map(singer => [singer.toLowerCase(), singer])
+            ).values()];
+            if (singers.length === 0) singers.push(target.singer || 'Sin asignar');
+
+            const defaultSinger = singers[0];
+            const defaultVersion = versions.find(version =>
+                version.singer.toLowerCase() === defaultSinger.toLowerCase()
             );
-            if (singerInput === null || singerInput.trim() === '') return;
-            const selectedVersion = (target.singerVersions || []).find(version =>
-                version.singer.toLowerCase() === singerInput.trim().toLowerCase()
+            const toneOptions = chromaticScale.flatMap(tone => [tone, `${tone}m`]);
+            versions.forEach(version => {
+                if (version.tone && !toneOptions.includes(version.tone)) toneOptions.push(version.tone);
+            });
+            const defaultTone = defaultVersion?.tone || target.tone || 'C';
+            if (!toneOptions.includes(defaultTone)) toneOptions.push(defaultTone);
+
+            const selection = await openAppModal({
+                title: 'Añadir a la lista de ensayo',
+                message: target.title,
+                showCancel: true,
+                confirmText: 'Agregar canción',
+                select1: {
+                    label: 'Cantante',
+                    value: defaultSinger,
+                    options: singers.map(singer => ({ value: singer, label: singer })),
+                    onChange: event => {
+                        const selected = versions.find(version =>
+                            version.singer.toLowerCase() === event.target.value.toLowerCase()
+                        );
+                        if (selected?.tone && toneOptions.includes(selected.tone)) {
+                            document.getElementById('modal-select-2').value = selected.tone;
+                        }
+                    }
+                },
+                select2: {
+                    label: 'Tono para esta presentación',
+                    value: defaultTone,
+                    options: toneOptions.map(tone => ({ value: tone, label: tone }))
+                }
+            });
+            if (!selection) return;
+
+            const singerInput = selection.val1;
+            const selectedTone = selection.val2;
+            const selectedVersion = versions.find(version =>
+                version.singer.toLowerCase() === singerInput.toLowerCase()
             );
             const versionTone = selectedVersion?.tone || target.tone || 'C';
             const versionLyrics = selectedVersion?.lyrics || target.lyrics || '';
-
-            const toneOptions = ['C','C#','D','D#','E','F','F#','G','G#','A','A#','B'];
-            const defaultIdx = toneOptions.indexOf(versionTone);
-            const toneInput = prompt(
-                'Tono para esta versión:\n\n' + toneOptions.map((t, i) => `${i + 1}. ${t}`).join('\n') + '\n(Selecciona el número)',
-                defaultIdx >= 0 ? toneOptions[defaultIdx] : versionTone
-            );
-            if (toneInput === null) return;
-            const selectedTone = toneOptions[parseInt(toneInput) - 1] || toneInput.trim().toUpperCase();
-            if (!selectedTone) return;
 
             const transposedLyrics = transposeLyricsText(versionLyrics, versionTone, selectedTone);
             const activeSetlist = getActiveSetlist();
@@ -2907,7 +2940,7 @@
         }
 
         // ===================== SISTEMA DE MODALES MODERNOS =====================
-        function openAppModal({ title = '', message = '', showCancel = false, confirmText = 'Aceptar', cancelText = 'Cancelar', input1 = null, input2 = null }) {
+        function openAppModal({ title = '', message = '', showCancel = false, confirmText = 'Aceptar', cancelText = 'Cancelar', input1 = null, input2 = null, select1 = null, select2 = null }) {
             return new Promise((resolve) => {
                 const modal = document.getElementById('app-modal');
                 const titleEl = document.getElementById('modal-title');
@@ -2917,27 +2950,32 @@
                 const inp1 = document.getElementById('modal-input-1');
                 const label2 = document.getElementById('modal-label-2');
                 const inp2 = document.getElementById('modal-input-2');
+                const selectEl1 = document.getElementById('modal-select-1');
+                const selectEl2 = document.getElementById('modal-select-2');
                 const cancelBtn = document.getElementById('modal-cancel-btn');
                 const confirmBtn = document.getElementById('modal-confirm-btn');
+                const hasFirstControl = Boolean(input1 || select1);
+                const hasSecondControl = Boolean(input2 || select2);
+                const hasControls = hasFirstControl || hasSecondControl;
 
                 titleEl.innerText = title;
                 msgEl.innerText = message;
                 msgEl.style.display = message ? 'block' : 'none';
+                inputArea.classList.toggle('hidden', !hasControls);
 
                 if (input1) {
-                    inputArea.classList.remove('hidden');
                     label1.innerText = input1.label || '';
                     label1.style.display = input1.label ? 'block' : 'none';
                     inp1.value = input1.value || '';
                     inp1.placeholder = input1.placeholder || '';
                     inp1.classList.remove('hidden');
                 } else {
-                    inputArea.classList.add('hidden');
                     inp1.classList.add('hidden');
                 }
 
                 if (input2) {
                     label2.innerText = input2.label || '';
+                    label2.style.display = input2.label ? 'block' : 'none';
                     label2.classList.remove('hidden');
                     inp2.value = input2.value || '';
                     inp2.placeholder = input2.placeholder || '';
@@ -2946,6 +2984,32 @@
                     label2.classList.add('hidden');
                     inp2.classList.add('hidden');
                 }
+
+                function configureSelect(selectEl, labelEl, config) {
+                    if (!config) {
+                        selectEl.classList.add('hidden');
+                        selectEl.onchange = null;
+                        return;
+                    }
+                    labelEl.innerText = config.label || '';
+                    labelEl.style.display = config.label ? 'block' : 'none';
+                    labelEl.classList.remove('hidden');
+                    selectEl.innerHTML = '';
+                    (config.options || []).forEach(optionData => {
+                        const option = document.createElement('option');
+                        option.value = optionData.value;
+                        option.textContent = optionData.label;
+                        selectEl.appendChild(option);
+                    });
+                    selectEl.value = config.value || '';
+                    selectEl.classList.remove('hidden');
+                    selectEl.onchange = config.onChange || null;
+                }
+
+                if (!input1) label1.style.display = 'none';
+                if (!input2) label2.style.display = 'none';
+                configureSelect(selectEl1, label1, select1);
+                configureSelect(selectEl2, label2, select2);
 
                 confirmBtn.innerText = confirmText;
                 cancelBtn.innerText = cancelText;
@@ -2957,8 +3021,9 @@
                 }
 
                 modal.classList.remove('hidden');
-                if (input1) {
-                    setTimeout(() => { inp1.focus(); inp1.select(); }, 50);
+                if (hasControls) {
+                    const firstControl = input1 ? inp1 : select1 ? selectEl1 : input2 ? inp2 : selectEl2;
+                    setTimeout(() => firstControl.focus(), 50);
                 }
 
                 function cleanup() {
@@ -2967,14 +3032,22 @@
                     cancelBtn.onclick = null;
                     inp1.onkeydown = null;
                     inp2.onkeydown = null;
+                    selectEl1.onkeydown = null;
+                    selectEl2.onkeydown = null;
+                    selectEl1.onchange = null;
+                    selectEl2.onchange = null;
                 }
 
                 function onConfirm() {
                     let res = true;
-                    if (input1 && input2) {
-                        res = { val1: inp1.value, val2: inp2.value };
-                    } else if (input1) {
-                        res = inp1.value;
+                    const firstValue = select1 ? selectEl1.value : inp1.value;
+                    const secondValue = select2 ? selectEl2.value : inp2.value;
+                    if (hasFirstControl && hasSecondControl) {
+                        res = { val1: firstValue, val2: secondValue };
+                    } else if (hasFirstControl) {
+                        res = firstValue;
+                    } else if (hasSecondControl) {
+                        res = secondValue;
                     }
                     cleanup();
                     resolve(res);
@@ -2982,7 +3055,7 @@
 
                 function onCancel() {
                     cleanup();
-                    resolve(input1 ? null : false);
+                    resolve(hasControls ? null : false);
                 }
 
                 confirmBtn.onclick = onConfirm;
@@ -2999,6 +3072,8 @@
                 };
                 inp1.onkeydown = handleKey;
                 inp2.onkeydown = handleKey;
+                selectEl1.onkeydown = handleKey;
+                selectEl2.onkeydown = handleKey;
             });
         }
 
@@ -3442,9 +3517,11 @@
             <label id="modal-label-1" class="text-xs text-slate-400 block"></label>
             <input id="modal-input-1" type="text" autocomplete="off"
                 class="w-full bg-slate-950 border border-slate-700 rounded-xl px-3.5 py-2.5 text-sm text-white focus:outline-none focus:border-amber-500 transition">
+            <select id="modal-select-1" class="hidden w-full bg-slate-950 border border-slate-700 rounded-xl px-3.5 py-2.5 text-sm text-white focus:outline-none focus:border-amber-500 transition"></select>
             <label id="modal-label-2" class="text-xs text-slate-400 block hidden"></label>
             <input id="modal-input-2" type="text" autocomplete="off"
                 class="hidden w-full bg-slate-950 border border-slate-700 rounded-xl px-3.5 py-2.5 text-sm text-white focus:outline-none focus:border-amber-500 transition">
+            <select id="modal-select-2" class="hidden w-full bg-slate-950 border border-slate-700 rounded-xl px-3.5 py-2.5 text-sm text-white focus:outline-none focus:border-amber-500 transition"></select>
         </div>
         <div class="p-4 flex justify-end gap-2">
             <button id="modal-cancel-btn" class="hidden px-4 py-2 rounded-xl text-xs font-semibold bg-slate-800 text-slate-300 hover:text-white transition active:scale-95">Cancelar</button>
