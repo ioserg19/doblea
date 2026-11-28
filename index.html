@@ -582,10 +582,63 @@
         let hasLoadedInitialData = false;
         let latestNotificationData = null;
 
+        function mergeDuplicateSongs(songList) {
+            const mergedSongs = [];
+            const songsByIdentity = new Map();
+
+            (Array.isArray(songList) ? songList : []).forEach((song, songIndex) => {
+                if (!song || typeof song !== 'object') return;
+
+                const title = String(song.title || '').trim();
+                if (!title) {
+                    mergedSongs.push(song);
+                    return;
+                }
+
+                const artist = String(song.artist || '').trim();
+                const identity = `${title.toLocaleLowerCase()}::${artist.toLocaleLowerCase()}`;
+                const versions = Array.isArray(song.singerVersions) && song.singerVersions.length
+                    ? song.singerVersions
+                    : [{ singer: song.singer, transpose: 0 }];
+                const normalizedVersions = versions.map((version, versionIndex) => ({
+                    ...version,
+                    key: version.key || `v_${song.id || songIndex}_${versionIndex}`,
+                    singer: String(version.singer || song.singer || 'Sin asignar').trim() || 'Sin asignar',
+                    tone: version.tone || song.tone || 'C',
+                    lyrics: typeof version.lyrics === 'string' ? version.lyrics : (song.lyrics || '')
+                }));
+
+                const existing = songsByIdentity.get(identity);
+                if (!existing) {
+                    const normalizedSong = { ...song, singerVersions: normalizedVersions };
+                    songsByIdentity.set(identity, normalizedSong);
+                    mergedSongs.push(normalizedSong);
+                    return;
+                }
+
+                const existingSingers = new Set(
+                    existing.singerVersions.map(version => version.singer.toLocaleLowerCase())
+                );
+                normalizedVersions.forEach(version => {
+                    const singerKey = version.singer.toLocaleLowerCase();
+                    if (!existingSingers.has(singerKey)) {
+                        existing.singerVersions.push(version);
+                        existingSingers.add(singerKey);
+                    }
+                });
+
+                ['rhythm', 'bpm', 'youtubeUrl', 'youtubeTitle', 'notes', 'lyrics', 'tone'].forEach(field => {
+                    if (!existing[field] && song[field]) existing[field] = song[field];
+                });
+            });
+
+            return mergedSongs;
+        }
+
         let songs = [];
         try {
             const cachedSongs = localStorage.getItem('group_songs');
-            if (cachedSongs) songs = JSON.parse(cachedSongs) || [];
+            if (cachedSongs) songs = mergeDuplicateSongs(JSON.parse(cachedSongs));
         } catch(e) { songs = []; }
 
         let setlists = [];
@@ -630,9 +683,11 @@
             if (!data) return;
             isSyncingFromCloud = true; 
             hasLoadedInitialData = true;
+            let cloudSongsWereMerged = false;
 
             if (Array.isArray(data.songs)) {
-                songs = data.songs;
+                songs = mergeDuplicateSongs(data.songs);
+                cloudSongsWereMerged = songs.length < data.songs.length;
             }
             if (Array.isArray(data.setlists)) {
                 setlists = data.setlists;
@@ -656,7 +711,10 @@
                 checkNewSetlistNotification(latestNotificationData);
             }
             
-            setTimeout(() => { isSyncingFromCloud = false; }, 500);
+            setTimeout(() => {
+                isSyncingFromCloud = false;
+                if (cloudSongsWereMerged) syncUploadToCloud(true);
+            }, 500);
         }
 
         // 1. Escucha en tiempo real (Firebase WebSocket)
@@ -1426,7 +1484,9 @@
                 card.className = "bg-slate-900 border border-slate-800 p-3.5 rounded-xl flex justify-between items-center cursor-pointer hover:border-amber-500/80 transition group shadow-sm";
                 card.onclick = () => openSongViewer(song.id, 'library');
                 // Cantante a mostrar: prioridad a singerVersions[0] si existe
-                const displaySinger = (song.singerVersions && song.singerVersions[0]?.singer) || song.singer || 'Sin asignar';
+                const displaySinger = [...new Set(
+                    (song.singerVersions || []).map(version => version.singer).filter(Boolean)
+                )].join(', ') || song.singer || 'Sin asignar';
                 card.innerHTML = `
                     <div class="space-y-0.5 min-w-0 pr-2">
                         <h3 class="font-bold text-white text-sm group-hover:text-amber-400 transition truncate">${song.title}</h3>
@@ -1483,20 +1543,28 @@
             const target = songs.find(s => s.id === songId);
             if (!target) return;
 
-            const singerInput = prompt('Nombre del cantante para esta versión:', target.singer || 'Sin cantar');
+            const singerInput = prompt(
+                'Nombre del cantante para esta versión:',
+                target.singerVersions?.[0]?.singer || target.singer || 'Sin asignar'
+            );
             if (singerInput === null || singerInput.trim() === '') return;
+            const selectedVersion = (target.singerVersions || []).find(version =>
+                version.singer.toLowerCase() === singerInput.trim().toLowerCase()
+            );
+            const versionTone = selectedVersion?.tone || target.tone || 'C';
+            const versionLyrics = selectedVersion?.lyrics || target.lyrics || '';
 
             const toneOptions = ['C','C#','D','D#','E','F','F#','G','G#','A','A#','B'];
-            const defaultIdx = toneOptions.indexOf(target.tone);
+            const defaultIdx = toneOptions.indexOf(versionTone);
             const toneInput = prompt(
                 'Tono para esta versión:\n\n' + toneOptions.map((t, i) => `${i + 1}. ${t}`).join('\n') + '\n(Selecciona el número)',
-                defaultIdx >= 0 ? toneOptions[defaultIdx] : 'G'
+                defaultIdx >= 0 ? toneOptions[defaultIdx] : versionTone
             );
             if (toneInput === null) return;
             const selectedTone = toneOptions[parseInt(toneInput) - 1] || toneInput.trim().toUpperCase();
             if (!selectedTone) return;
 
-            const transposedLyrics = transposeLyricsText(target.lyrics, target.tone, selectedTone);
+            const transposedLyrics = transposeLyricsText(versionLyrics, versionTone, selectedTone);
             const activeSetlist = getActiveSetlist();
             const item = {
                 ...target,
@@ -2506,28 +2574,33 @@
 
             const otherSinger = res.val1.trim();
             const newTone = (res.val2 || activeSong.tone || 'C').trim().toUpperCase();
+            const catalogSong = songs.find(song => song.id === activeSong.id) || activeSong;
+            const singerVersions = Array.isArray(catalogSong.singerVersions) ? catalogSong.singerVersions : [];
+            if (singerVersions.some(version => version.singer.toLowerCase() === otherSinger.toLowerCase())) {
+                showNotification(`Ya existe una versión para ${otherSinger}.`);
+                return;
+            }
 
-            let clonedLyrics = transposeLyricsText(activeSong.lyrics, activeSong.tone, newTone);
-
-            const clonedSong = {
-                id: Date.now(),
-                title: activeSong.title,
-                artist: activeSong.artist,
+            const baseTone = catalogSong.tone || 'C';
+            const baseLyrics = catalogSong.lyrics || '';
+            const clonedLyrics = transposeLyricsText(baseLyrics, baseTone, newTone);
+            const baseRoot = chromaticScale.indexOf(normalizeNote(baseTone.replace(/m$/, '')));
+            const newRoot = chromaticScale.indexOf(normalizeNote(newTone.replace(/m$/, '')));
+            let transpose = baseRoot < 0 || newRoot < 0 ? 0 : (newRoot - baseRoot + 12) % 12;
+            if (transpose > 6) transpose -= 12;
+            singerVersions.push({
+                key: `v_${Date.now()}`,
                 singer: otherSinger,
+                transpose,
                 tone: newTone,
-                rhythm: activeSong.rhythm,
-                bpm: activeSong.bpm || '',
-                notes: activeSong.notes || '',
-                lyrics: clonedLyrics,
-                youtubeUrl: activeSong.youtubeUrl || '',
-                youtubeTitle: activeSong.youtubeTitle || ''
-            };
+                lyrics: clonedLyrics
+            });
+            catalogSong.singerVersions = singerVersions;
 
-            songs.unshift(clonedSong);
             saveData();
             renderSingerChips();
+            renderLibrary(songs);
             showNotification(`¡Versión para ${otherSinger} creada con éxito!`);
-            openSongViewer(clonedSong.id, 'library');
             syncUploadToCloud(true);
         }
 
@@ -2553,6 +2626,7 @@
                 id: Date.now(),
                 title: document.getElementById('new-title').value.trim(),
                 artist: document.getElementById('new-artist').value.trim(),
+                singer: newSingerInput || 'Sin asignar',
                 tone: newToneInput,
                 rhythm: document.getElementById('new-rhythm').value.trim(),
                 bpm: document.getElementById('new-bpm').value.trim(),
@@ -2561,10 +2635,16 @@
                 youtubeUrl: ytUrlInput ? ytUrlInput.value.trim() : '',
                 youtubeTitle: ytTitleInput ? ytTitleInput.value.trim() : '',
                 singerVersions: [
-                    { key: 'v_orig', singer: newSingerInput, transpose: 0 }
+                    {
+                        key: 'v_orig',
+                        singer: newSingerInput || 'Sin asignar',
+                        transpose: 0,
+                        tone: newToneInput,
+                        lyrics: document.getElementById('new-lyrics').value
+                    }
                 ]
             };
-            songs.unshift(newSong);
+            songs = mergeDuplicateSongs([...songs, newSong]);
             saveData();
             showNotification("¡Canción agregada a la librería!");
             document.getElementById('add-song-form').reset();
