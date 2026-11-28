@@ -211,6 +211,10 @@
                 </div>
 
                 <div id="library-management-panel" class="space-y-3 pt-2 border-t border-slate-800">
+                    <div id="viewer-singer-version-control" class="hidden bg-slate-950/80 p-3 rounded-xl border border-slate-800">
+                        <label for="viewer-singer-version-select" class="block text-xs text-amber-300 font-semibold mb-2">🎤 Versión de cantante</label>
+                        <select id="viewer-singer-version-select" onchange="selectViewerSingerVersion(this.value)" class="w-full bg-slate-900 border border-slate-700 rounded-xl px-3 py-2.5 text-sm text-white focus:outline-none focus:border-amber-500 transition"></select>
+                    </div>
                     <div class="bg-slate-950/80 p-3 rounded-xl border border-slate-800 space-y-2.5">
                         <span class="text-xs text-amber-300 font-semibold block flex items-center justify-between">
                             <span>🎵 Transportar Tono en Vivo:</span>
@@ -224,7 +228,7 @@
                         </div>
 
                         <button onclick="saveSongEdits()" class="w-full bg-amber-500 hover:bg-amber-400 text-slate-950 py-2 rounded-lg text-xs font-bold transition flex items-center justify-center gap-2 shadow-md shadow-amber-500/20">
-                            <span>💾</span> Fijar tono en vivo como Original
+                            <span>💾</span> Guardar tono para este cantante
                         </button>
                     </div>
                     
@@ -667,6 +671,7 @@
         let activeSetlistId = localStorage.getItem('group_active_setlist_id') || (setlists[0] ? setlists[0].id : null);
 
         let activeSong = null;
+        let activeSingerVersionKey = null;
         let transposeSteps = 0;
         let viewerSource = 'library';
         let currentSetlistIndex = -1;
@@ -1613,6 +1618,75 @@
             syncUploadToCloud(true);
         }
 
+        function ensureSongSingerVersions(song) {
+            if (!Array.isArray(song.singerVersions)) song.singerVersions = [];
+            song.singerVersions = song.singerVersions.filter(version => version && typeof version === 'object');
+            if (song.singerVersions.length === 0) {
+                song.singerVersions.push({
+                    key: `v_${song.id}_original`,
+                    singer: song.singer || 'Sin asignar',
+                    transpose: 0,
+                    tone: song.tone || 'C',
+                    lyrics: song.lyrics || ''
+                });
+            }
+
+            song.singerVersions.forEach((version, index) => {
+                if (!version.key) version.key = `v_${song.id}_${index}`;
+                version.singer = String(version.singer || song.singer || 'Sin asignar').trim() || 'Sin asignar';
+                version.tone = version.tone || song.tone || 'C';
+                if (typeof version.lyrics !== 'string') version.lyrics = song.lyrics || '';
+            });
+            return song.singerVersions;
+        }
+
+        function renderViewerSingerSelector(song, selectedKey = null) {
+            const control = document.getElementById('viewer-singer-version-control');
+            const select = document.getElementById('viewer-singer-version-select');
+            const versions = ensureSongSingerVersions(song);
+            select.innerHTML = '';
+            versions.forEach(version => {
+                const option = document.createElement('option');
+                option.value = String(version.key);
+                option.textContent = version.singer;
+                select.appendChild(option);
+            });
+            if (selectedKey !== null) select.value = String(selectedKey);
+            if (versions.length > 1 && viewerSource === 'library') {
+                control.classList.remove('hidden');
+            } else {
+                control.classList.add('hidden');
+            }
+        }
+
+        function selectViewerSingerVersion(versionKey) {
+            if (viewerSource !== 'library' || !activeSong) return;
+            const catalogSong = songs.find(song => song.id === activeSong.id);
+            if (!catalogSong) return;
+
+            const version = ensureSongSingerVersions(catalogSong).find(item =>
+                String(item.key) === String(versionKey)
+            );
+            if (!version) return;
+
+            activeSingerVersionKey = version.key;
+            const versionTone = version.tone || catalogSong.tone || 'C';
+            activeSong = {
+                ...catalogSong,
+                singer: version.singer,
+                tone: versionTone,
+                lyrics: version.lyrics || catalogSong.lyrics || '',
+                currentToneInSession: versionTone
+            };
+            transposeSteps = 0;
+            renderViewerSingerSelector(catalogSong, version.key);
+            document.getElementById('view-singer-badge').innerText = `🎤 ${version.singer}`;
+            document.getElementById('current-tone-label').innerText = versionTone;
+            document.getElementById('view-tone-badge').innerText = `🎵 ${versionTone}`;
+            startVisualMetronome(activeSong.bpm);
+            renderChordChart();
+        }
+
         function openSongViewer(songIdOrObject, source = 'library', setlistIdx = -1) {
             viewerSource = source;
             currentSetlistIndex = setlistIdx;
@@ -1624,6 +1698,28 @@
             }
 
             if (!activeSong) return;
+
+            activeSingerVersionKey = null;
+            if (viewerSource === 'library') {
+                const catalogSong = songs.find(song => song.id === activeSong.id) || activeSong;
+                const versions = ensureSongSingerVersions(catalogSong);
+                const selectedVersion = versions.find(version =>
+                    version.singer.toLowerCase() === String(activeSong.singer || '').toLowerCase()
+                ) || versions[0];
+                if (selectedVersion) {
+                    activeSingerVersionKey = selectedVersion.key;
+                    activeSong = {
+                        ...catalogSong,
+                        singer: selectedVersion.singer,
+                        tone: selectedVersion.tone || catalogSong.tone || 'C',
+                        lyrics: selectedVersion.lyrics || catalogSong.lyrics || '',
+                        currentToneInSession: selectedVersion.tone || catalogSong.tone || 'C'
+                    };
+                    renderViewerSingerSelector(catalogSong, selectedVersion.key);
+                }
+            } else {
+                document.getElementById('viewer-singer-version-control').classList.add('hidden');
+            }
 
             transposeSteps = 0;
 
@@ -2574,12 +2670,28 @@
 
             const inCatalog = songs.find(s => s.id === activeSong.id);
             if (inCatalog) {
-                inCatalog.tone = newTone;
-                inCatalog.lyrics = activeSong.lyrics;
+                const versions = ensureSongSingerVersions(inCatalog);
+                const selectedVersion = versions.find(version =>
+                    String(version.key) === String(activeSingerVersionKey)
+                );
+                if (selectedVersion) {
+                    selectedVersion.tone = newTone;
+                    selectedVersion.lyrics = activeSong.lyrics;
+                    if (versions[0].key === selectedVersion.key) {
+                        inCatalog.tone = newTone;
+                        inCatalog.lyrics = activeSong.lyrics;
+                    }
+                } else {
+                    inCatalog.tone = newTone;
+                    inCatalog.lyrics = activeSong.lyrics;
+                }
             }
 
             const activeSetlist = getActiveSetlist();
-            const inSetlist = activeSetlist.songs.find(s => s.id === activeSong.id || s.uniqueKey === activeSong.uniqueKey);
+            const inSetlist = activeSetlist.songs.find(s =>
+                (activeSong.uniqueKey && s.uniqueKey === activeSong.uniqueKey) ||
+                (s.id === activeSong.id && (s.singer || '').toLowerCase() === (activeSong.singer || '').toLowerCase())
+            );
             if (inSetlist) {
                 inSetlist.currentToneInSession = newTone;
                 inSetlist.tone = newTone;
@@ -2587,10 +2699,12 @@
             }
 
             saveData();
+            if (inCatalog) renderViewerSingerSelector(inCatalog, activeSingerVersionKey);
+            renderLibrary(songs);
             renderChordChart();
             window.scrollTo({ top: savedWindowScroll, behavior: 'instant' });
 
-            showNotification("💾 ¡Tono base fijado y acordes de la letra actualizados!");
+            showNotification(`💾 Tono guardado para ${activeSong.singer || 'esta versión'}.`);
             syncUploadToCloud(true);
         }
 
@@ -2614,8 +2728,8 @@
                 return;
             }
 
-            const baseTone = catalogSong.tone || 'C';
-            const baseLyrics = catalogSong.lyrics || '';
+            const baseTone = activeSong.tone || catalogSong.tone || 'C';
+            const baseLyrics = activeSong.lyrics || catalogSong.lyrics || '';
             const clonedLyrics = transposeLyricsText(baseLyrics, baseTone, newTone);
             const baseRoot = chromaticScale.indexOf(normalizeNote(baseTone.replace(/m$/, '')));
             const newRoot = chromaticScale.indexOf(normalizeNote(newTone.replace(/m$/, '')));
@@ -2633,6 +2747,7 @@
             saveData();
             renderSingerChips();
             renderLibrary(songs);
+            renderViewerSingerSelector(catalogSong, activeSingerVersionKey);
             showNotification(`¡Versión para ${otherSinger} creada con éxito!`);
             syncUploadToCloud(true);
         }
@@ -2824,6 +2939,7 @@
         function saveQuickLyrics() {
             if (!activeSong) return;
             const savedWindowScroll = window.scrollY; 
+            const previousSinger = activeSong.singer || '';
 
             const newTitle = document.getElementById('quick-edit-title').value.trim();
             const newArtist = document.getElementById('quick-edit-artist').value.trim();
@@ -2858,11 +2974,44 @@
 
             const inCatalog = songs.find(s => s.id === activeSong.id);
             if (inCatalog) {
-                Object.assign(inCatalog, { title: newTitle, artist: newArtist, singer: newSinger, tone: newTone, rhythm: newRhythm, bpm: newBpm, notes: newNotes, lyrics: updatedLyrics, youtubeUrl: newYoutubeUrl, youtubeTitle: newYoutubeTitle });
+                Object.assign(inCatalog, {
+                    title: newTitle,
+                    artist: newArtist,
+                    rhythm: newRhythm,
+                    bpm: newBpm,
+                    notes: newNotes,
+                    youtubeUrl: newYoutubeUrl,
+                    youtubeTitle: newYoutubeTitle
+                });
+                const versions = ensureSongSingerVersions(inCatalog);
+                const selectedVersion = versions.find(version =>
+                    String(version.key) === String(activeSingerVersionKey)
+                );
+                if (selectedVersion) {
+                    selectedVersion.singer = newSinger || 'Sin asignar';
+                    selectedVersion.tone = newTone;
+                    selectedVersion.lyrics = updatedLyrics;
+                    if (versions[0].key === selectedVersion.key) {
+                        Object.assign(inCatalog, {
+                            singer: selectedVersion.singer,
+                            tone: newTone,
+                            lyrics: updatedLyrics
+                        });
+                    }
+                } else {
+                    Object.assign(inCatalog, {
+                        singer: newSinger,
+                        tone: newTone,
+                        lyrics: updatedLyrics
+                    });
+                }
             }
 
             const activeSetlist = getActiveSetlist();
-            const inSetlist = activeSetlist.songs.find(s => s.id === activeSong.id || s.uniqueKey === activeSong.uniqueKey);
+            const inSetlist = activeSetlist.songs.find(s =>
+                (activeSong.uniqueKey && s.uniqueKey === activeSong.uniqueKey) ||
+                (s.id === activeSong.id && (s.singer || '').toLowerCase() === previousSinger.toLowerCase())
+            );
             if (inSetlist) {
                 Object.assign(inSetlist, { title: newTitle, artist: newArtist, singer: newSinger, tone: newTone, currentToneInSession: newTone, rhythm: newRhythm, bpm: newBpm, notes: newNotes, lyrics: updatedLyrics, youtubeUrl: newYoutubeUrl, youtubeTitle: newYoutubeTitle });
             }
@@ -2880,6 +3029,7 @@
             if (viewToneBadge) {
                 viewToneBadge.innerText = "🎵 " + activeSong.tone;
             }
+            if (inCatalog) renderViewerSingerSelector(inCatalog, activeSingerVersionKey);
 
             const notesBox = document.getElementById('view-notes-box');
             if (activeSong.notes && activeSong.notes.trim()) {
