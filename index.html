@@ -1328,10 +1328,14 @@
 
         function renderSingerChips() {
             const container = document.getElementById('singer-chips-container');
-            let singers = ['todos', ...new Set(songs.map(s => s.singer).filter(Boolean))];
+            // Cantantes de todas las versiones de cada canción
+            const singerList = [...new Set(
+              songs.flatMap(s => s.singerVersions ? s.singerVersions.map(v => v.singer || 'Sin asignar') : [])
+            ).filter(Boolean);
+            const allSingers = ['todos', ...singerList];
             container.innerHTML = "";
             
-            singers.forEach((singer, idx) => {
+            allSingers.forEach((singer, idx) => {
                 const btn = document.createElement('button');
                 btn.className = `singer-chip px-3 py-1.5 rounded-full whitespace-nowrap text-xs font-semibold transition ${idx === 0 ? 'bg-amber-500 text-slate-950 shadow-sm shadow-amber-500/30' : 'bg-slate-900 border border-slate-800 text-slate-300 hover:text-white'}`;
                 btn.innerText = singer === 'todos' ? '🎤 Todos' : singer;
@@ -1421,11 +1425,13 @@
                 const card = document.createElement('div');
                 card.className = "bg-slate-900 border border-slate-800 p-3.5 rounded-xl flex justify-between items-center cursor-pointer hover:border-amber-500/80 transition group shadow-sm";
                 card.onclick = () => openSongViewer(song.id, 'library');
+                // Cantante a mostrar: prioridad a singerVersions[0] si existe
+                const displaySinger = (song.singerVersions && song.singerVersions[0]?.singer) || song.singer || 'Sin asignar';
                 card.innerHTML = `
                     <div class="space-y-0.5 min-w-0 pr-2">
                         <h3 class="font-bold text-white text-sm group-hover:text-amber-400 transition truncate">${song.title}</h3>
                         <p class="text-xs text-slate-400 truncate">
-                            Artista: <span class="text-slate-300">${song.artist}</span> • Cantante: <span class="text-amber-400 font-semibold">${song.singer}</span>
+                            Artista: <span class="text-slate-300">${song.artist}</span> • Cantante: <span class="text-amber-400 font-semibold">${displaySinger}</span>
                         </p>
                         ${song.rhythm ? `<span class="text-[10px] text-slate-500 font-mono">${song.rhythm} ${song.bpm ? '• ' + song.bpm + ' BPM' : ''}</span>` : ''}
                     </div>
@@ -1450,7 +1456,8 @@
             const filtered = songs.filter(s => 
                 s.title.toLowerCase().includes(query) || 
                 s.artist.toLowerCase().includes(query) || 
-                (s.singer && s.singer.toLowerCase().includes(query))
+                (s.singer && s.singer.toLowerCase().includes(query)) ||
+                (s.singerVersions && s.singerVersions.some(v => v.singer.toLowerCase().includes(query)))
             );
             renderLibrary(filtered);
         }
@@ -1464,7 +1471,10 @@
             if (singer === 'todos') {
                 renderLibrary(songs);
             } else {
-                const filtered = songs.filter(s => s.singer && s.singer.toLowerCase() === singer.toLowerCase());
+                const filtered = songs.filter(s => 
+                    s.singer && s.singer.toLowerCase() === singer.toLowerCase() ||
+                    s.singerVersions && s.singerVersions.some(v => v.singer.toLowerCase() === singer.toLowerCase())
+                );
                 renderLibrary(filtered);
             }
         }
@@ -1472,15 +1482,33 @@
         function quickAddToSetlist(songId) {
             const target = songs.find(s => s.id === songId);
             if (!target) return;
+
+            const singerInput = prompt('Nombre del cantante para esta versión:', target.singer || 'Sin cantar');
+            if (singerInput === null || singerInput.trim() === '') return;
+
+            const toneOptions = ['C','C#','D','D#','E','F','F#','G','G#','A','A#','B'];
+            const defaultIdx = toneOptions.indexOf(target.tone);
+            const toneInput = prompt(
+                'Tono para esta versión:\n\n' + toneOptions.map((t, i) => `${i + 1}. ${t}`).join('\n') + '\n(Selecciona el número)',
+                defaultIdx >= 0 ? toneOptions[defaultIdx] : 'G'
+            );
+            if (toneInput === null) return;
+            const selectedTone = toneOptions[parseInt(toneInput) - 1] || toneInput.trim().toUpperCase();
+            if (!selectedTone) return;
+
+            const transposedLyrics = transposeLyricsText(target.lyrics, target.tone, selectedTone);
             const activeSetlist = getActiveSetlist();
             const item = {
                 ...target,
-                currentToneInSession: target.tone,
+                singer: singerInput.trim(),
+                tone: selectedTone,
+                currentToneInSession: selectedTone,
+                lyrics: transposedLyrics,
                 uniqueKey: Date.now() + Math.random()
             };
             activeSetlist.songs.push(item);
             saveData();
-            showNotification(`"${target.title}" agregada a "${activeSetlist.name}"`);
+            showNotification(`"${target.title}" agregada a "${activeSetlist.name}" (Cantante: ${singerInput}, Tono: ${selectedTone})`);
             syncUploadToCloud(true);
         }
 
@@ -2071,6 +2099,8 @@
             const liveTone = document.getElementById('current-tone-label').innerText;
             const songVersion = {
                 ...activeSong,
+                singer: activeSong.singer || 'Banda',
+                tone: activeSong.tone || 'C',
                 currentToneInSession: liveTone,
                 uniqueKey: Date.now() + Math.random()
             };
@@ -2516,19 +2546,23 @@
             e.preventDefault();
             const ytUrlInput = document.getElementById('new-youtube-url');
             const ytTitleInput = document.getElementById('new-youtube-title');
+            const newSingerInput = document.getElementById('new-singer').value.trim();
+            const newToneInput = document.getElementById('new-tone').value;
 
             const newSong = {
                 id: Date.now(),
                 title: document.getElementById('new-title').value.trim(),
                 artist: document.getElementById('new-artist').value.trim(),
-                singer: document.getElementById('new-singer').value.trim(),
-                tone: document.getElementById('new-tone').value,
+                tone: newToneInput,
                 rhythm: document.getElementById('new-rhythm').value.trim(),
                 bpm: document.getElementById('new-bpm').value.trim(),
                 notes: document.getElementById('new-notes').value.trim(),
                 lyrics: document.getElementById('new-lyrics').value,
                 youtubeUrl: ytUrlInput ? ytUrlInput.value.trim() : '',
-                youtubeTitle: ytTitleInput ? ytTitleInput.value.trim() : ''
+                youtubeTitle: ytTitleInput ? ytTitleInput.value.trim() : '',
+                singerVersions: [
+                    { key: 'v_orig', singer: newSingerInput, transpose: 0 }
+                ]
             };
             songs.unshift(newSong);
             saveData();
