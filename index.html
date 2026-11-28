@@ -1331,7 +1331,7 @@
             // Cantantes de todas las versiones de cada canción
             const singerList = [...new Set(
               songs.flatMap(s => s.singerVersions ? s.singerVersions.map(v => v.singer || 'Sin asignar') : [])
-            ).filter(Boolean);
+            )].filter(Boolean);
             const allSingers = ['todos', ...singerList];
             container.innerHTML = "";
             
